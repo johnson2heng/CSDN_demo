@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zn">
+<head>
+    <meta charset="UTF-8">
+    <title>Physijs物理引擎-ConeTwist约束</title>
+    <style type="text/css">
+        html, body {
+            margin: 0;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body onload="draw();">
+</body>
+<script src="https://cdn.bootcss.com/three.js/92/three.min.js"></script>
+<script src="/lib/libs/physi.js"></script>
+<script src="/lib/js/controls/OrbitControls.js"></script>
+<script src="/lib/js/libs/stats.min.js"></script>
+<script src="https://cdn.bootcss.com/dat-gui/0.7.1/dat.gui.min.js"></script>
+<script src="/lib/js/Detector.js"></script>
+
+<script>
+    var renderer, camera, scene, gui, light, stats, controls, constraint;
+    Physijs.scripts.worker = '/lib/libs/physijs_worker.js';
+    Physijs.scripts.ammo = '/lib/libs/ammo.js';
+
+    var friction = 0.5; //摩擦力
+    var restitution = 1; //反弹力
+
+    function initRender() {
+        renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0xeeeeee);
+        renderer.shadowMap.enabled = true;
+        //告诉渲染器需要阴影效果
+        document.body.appendChild(renderer.domElement);
+    }
+
+    function initCamera() {
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.set(0, 40, 75);
+    }
+
+    function initScene() {
+        scene = new Physijs.Scene();
+        scene.background = new THREE.Color(0xa0a0a0);
+        //scene.fog = new THREE.Fog(0xa0a0a0, 90, 150);
+
+        //设置重力
+        scene.setGravity(new THREE.Vector3(0, -30, 0));
+    }
+
+    //初始化dat.GUI简化试验流程
+    function initGui() {
+        //声明一个保存需求修改的相关数据的对象
+        gui = {
+            enableConeTwistMotor:false,
+            motorTargetX: 0,
+            motorTargetY: 0,
+            motorTargetZ: 0,
+            updateCone: function () {
+                if (gui.enableConeTwistMotor) {
+                    constraint.enableMotor();
+                    constraint.setMotorTarget(new THREE.Vector3(gui.motorTargetX, gui.motorTargetY, gui.motorTargetZ));
+                } else {
+                    constraint.disableMotor();
+                }
+
+            }
+        };
+        var datGui = new dat.GUI();
+        //将设置属性添加到gui当中，gui.add(对象，属性，最小值，最大值）
+        datGui.add(gui,"motorTargetX", -Math.PI/2, Math.PI/2).name("x轴目标").onChange(gui.updateCone);
+        datGui.add(gui,"motorTargetY", -Math.PI/2, Math.PI/2).name("y轴目标").onChange(gui.updateCone);
+        datGui.add(gui,"motorTargetZ", -Math.PI/2, Math.PI/2).name("z轴目标").onChange(gui.updateCone);
+        datGui.add(gui,"enableConeTwistMotor").name("开/关约束").onChange(gui.updateCone);
+    }
+
+    function randomColor() {
+        var arr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "A", "B", "C", "D", "E", "F"];
+        var str = "#";
+        for (var i = 0; i < 6; i++) {
+            str += arr[Math.floor(Math.random() * 16)];
+        }
+
+        return str;
+    }
+
+    function initLight() {
+        scene.add(new THREE.AmbientLight(0x444444));
+
+        light = new THREE.DirectionalLight(0xffffff);
+        light.position.set(0, 20, 10);
+
+        light.castShadow = true;
+        light.shadow.camera.top = 300;
+        light.shadow.camera.bottom = -300;
+        light.shadow.camera.left = -300;
+        light.shadow.camera.right = 300;
+
+
+        light.shadow.mapSize.width = 2048;
+        light.shadow.mapSize.height = 2048;
+
+        //告诉平行光需要开启阴影投射
+        light.castShadow = true;
+
+        scene.add(light);
+    }
+
+    function initModel() {
+
+        //辅助工具
+        var helper = new THREE.AxesHelper(50);
+        scene.add(helper);
+
+        // 地板
+        var mesh = new Physijs.BoxMesh(new THREE.BoxGeometry(200, 200, 0.2), Physijs.createMaterial(new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            depthWrite: false
+        })), 0);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+
+        //添加地板割线
+        var grid = new THREE.GridHelper(200, 50, 0x000000, 0x000000);
+        grid.material.opacity = 0.2;
+        grid.material.transparent = true;
+        scene.add(grid);
+
+        //添加滑块
+
+        var objectOne = new Physijs.BoxMesh(
+            new THREE.SphereGeometry(1),
+            Physijs.createMaterial(new THREE.MeshPhongMaterial({color: 0x4444ff, transparent: true, opacity: 0.7}), 0, 0),
+            0
+        );
+        objectOne.position.z = 0;
+        objectOne.position.x = 2;
+        objectOne.position.y = 15.5;
+        objectOne.castShadow = true;
+        scene.add(objectOne);
+
+
+        var objectTwo = new Physijs.SphereMesh(
+            new THREE.BoxGeometry(2, 12, 3),
+            Physijs.createMaterial(new THREE.MeshPhongMaterial({color: 0x4444ff, transparent: true, opacity: 0.7}), 0, 0),
+            1
+        );
+        objectTwo.position.z = 0;
+        objectTwo.position.x = 2;
+        objectTwo.position.y = 7.5;
+        objectTwo.castShadow = true;
+        scene.add(objectTwo);
+
+        //创建约束对象
+        constraint = new Physijs.ConeTwistConstraint(objectOne, objectTwo, objectOne.position);
+        scene.addConstraint(constraint);
+
+        // set limit to quarter circle for each axis
+        constraint.setLimit(0.5 * Math.PI, 0.5 * Math.PI, 0.5 * Math.PI);
+        constraint.setMaxMotorImpulse(0.01);
+        constraint.setMotorTarget(new THREE.Vector3(0, 0, 0)); // desired rotation
+
+    }
+
+    //初始化性能插件
+    function initStats() {
+        stats = new Stats();
+        document.body.appendChild(stats.dom);
+    }
+
+    function initControls() {
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        //设置控制器的中心点
+        //controls.target.set( 0, 100, 0 );
+        // 如果使用animate方法时，将此函数删除
+        //controls.addEventListener( 'change', render );
+        // 使动画循环使用时阻尼或自转 意思是否有惯性
+        controls.enableDamping = true;
+        //动态阻尼系数 就是鼠标拖拽旋转灵敏度
+        //controls.dampingFactor = 0.25;
+        //是否可以缩放
+        controls.enableZoom = true;
+        //是否自动旋转
+        controls.autoRotate = false;
+        controls.autoRotateSpeed = 0.5;
+        //设置相机距离原点的最远距离
+        controls.minDistance = 1;
+        //设置相机距离原点的最远距离
+        controls.maxDistance = 2000;
+        //是否开启右键拖拽
+        controls.enablePan = true;
+    }
+
+    function render() {
+        scene.simulate();
+
+        controls.update();
+    }
+
+    //窗口变动触发的函数
+    function onWindowResize() {
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+    }
+
+    function animate() {
+        //更新控制器
+        render();
+
+        //更新性能插件
+        stats.update();
+
+        renderer.render(scene, camera);
+
+        requestAnimationFrame(animate);
+    }
+
+    function draw() {
+        //兼容性判断
+        if (!Detector.webgl) Detector.addGetWebGLMessage();
+
+        initGui();
+        initRender();
+        initScene();
+        initCamera();
+        initLight();
+        initModel();
+        initControls();
+        initStats();
+
+        animate();
+        window.onresize = onWindowResize;
+    }
+
+
+</script>
+</html>

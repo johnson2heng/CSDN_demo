@@ -1,0 +1,816 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdn.bootcss.com/three.js/90/three.min.js"></script>
+    <script src="./TrackballControls.js"></script>
+    <script src="https://cdn.bootcss.com/tween.js/r14/Tween.min.js"></script>
+    <script src="./airLinesData.js"></script>
+</head>
+<style>
+    html,body{
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
+    }
+    #webgl-render{
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        z-index: 10;
+    }
+    #map{
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        z-index: 3;
+    }
+    #line{
+          height: 100%;
+          width: 100%;
+      }
+
+      #line>div{
+          height: 3px;
+          width: 100%;
+          background-color: white;
+          margin: auto 0;
+          transform: translateX(1px);
+      }
+      #rotLine{
+          height: 100%;
+          width: 100%;
+          /* vertical-align: middle; */
+      }
+
+      #rotLine>div{
+          height: 3px;
+          width: 100%;
+          background-color: white;
+          transform: rotate(-45deg);
+          margin: auto 0;
+          transform-origin: 0% 0%;
+      }
+      #tipMsg{
+          height: 100%;
+          width: 100%;
+          float: left;
+          position: relative;
+          top: -100px;
+          color: white;
+      }
+      #tip{
+          position: absolute;
+          z-index: 200;
+          top: 50%;
+          left: 50%;
+          width: 300px;
+          height: 200px;
+      }
+</style>
+<body>
+    <div id="map"></div>
+    <div id='tip'>
+        <div id="line" style="width:30%;float:left">
+            <div></div>
+        </div>
+        <div id='rotLine' style="width:20%;float:left">
+            <div></div>
+        </div>
+        <div id='tipMsg' style="width:40%;"  onclick="click">
+            <h2>点击屏幕开始动画</h2>
+        </div>
+    </div>
+    <div id="webgl-render"></div>
+</body>
+<script>
+
+'use strict'
+
+    console.log(airLinesData)
+    let posss = []
+    for(let airs of airLinesData){
+        for(let air of airs.airports){
+            posss.push([air[3], air[4]])
+        }
+    }
+    console.log(posss)
+    let renderer, scene, camera
+    let radius = 150
+    let size = {
+      width: $('#webgl-render').width(),
+      height: $('#webgl-render').height()
+    }
+
+
+    // let map = new ol.Map({
+    //   layers: [
+    //     // 创建一个使用Open Street Map地图源的瓦片图层
+    //     new ol.layer.Tile({
+    //         source : new ol.source.XYZ({
+    //            url : 'http://192.168.15.107:8888/styles/DarkTechTEN/rendered/{z}/{x}/{y}.png'
+    //         })
+    //    })
+    //   ],
+    //   // 设置显示地图的视图
+    //   view: new ol.View({
+    //     center: [0, 0],  // 定义地图显示中心于经度0度，纬度0度处
+    //     zoom: 2  // 并且定义地图显示层级为2
+    //   }),
+    //   // 让id为map的div作为地图的容器
+    //   target: 'map'
+    // })
+
+    /**
+     * init
+     */
+    scene = new THREE.Scene()
+    camera = new THREE.PerspectiveCamera(45, size.width / size.height, 0.5, 20000)
+    camera.position.set(410, 0, 0)
+    camera.lookAt(scene.position)
+    camera.up.set(0, 0, 1)
+    renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      depthTest: 0.5
+    })
+    renderer.setSize(size.width, size.height)
+    renderer.setPixelRatio(window.devicePixelRatio)
+    renderer.clearColor(0x000000)
+    $('#webgl-render').append(renderer.domElement)
+
+
+    let earth = new THREE.Group()
+    let spEarth = new THREE.Group()
+    // $(document).one('click', () => {
+    //     // let texture = new THREE.TextureLoader().load('./global.png')
+    //     let canvas = $('#map').find('canvas')[0]
+    //     console.log(canvas)
+    //     let texture = new THREE.CanvasTexture(canvas)
+    //     let geometry = new THREE.SphereGeometry(radius, 40, 40)
+    //     let sphere = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+    //     map: texture,
+    //     // transparent: false,
+    //     // opacity: 0.93,
+    //     // side: THREE.DoubleSide
+    //     }))
+    //     // let sphere1 = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
+    //     //   map: texture,
+    //     //   transparent: false,
+    //     //   side: THREE.BackSide
+    //     // }))
+    //     sphere.rotation.x = Math.PI / 2
+    //     // earth.rotation.x = Math.PI / 2
+    //     // sphere1.rotation.y = Math.PI / 2
+    //     // earth.add(sphere1)
+    //     earth.add(sphere)
+    // })
+
+    let texture = new THREE.TextureLoader().load('./global.png')
+    let geometry = new THREE.SphereGeometry(radius, 40, 40)
+    let sphere = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: false,
+    opacity: 1.0,
+    side: THREE.DoubleSide
+    }))
+    sphere.rotation.x = Math.PI / 2
+    spEarth.add(sphere)
+    earth.add(spEarth)
+    earth.matrixAutoUpdate = true
+
+    scene.add(earth)
+
+    // scene.add(new THREE.AmbientLight(0xffffff, 0.5))
+
+    // let axisHelper = new THREE.AxisHelper(500)
+    // scene.add(axisHelper)
+
+    let control = new THREE.TrackballControls(camera, renderer.domElement)
+
+    const onResize = () =>{
+      camera.aspect = $('#webgl-render').width() / $('#webgl-render').height()
+      camera.updateProjectionMatrix()
+      renderer.setSize($('#webgl-render').width(), $('#webgl-render').height())
+    }
+
+    window.addEventListener('resize', onResize, false)
+
+    const lglt2xyz = (lon, lat, radius = radius) => {
+      lon = (lon) * Math.PI / 180
+      lat = (lat) * Math.PI / 180
+      let x = radius * Math.cos(lat) * Math.cos(lon)
+      let y = radius * Math.cos(lat) * Math.sin(lon)
+      let z = radius * Math.sin(lat)
+    //   return new THREE.Vector3(x, y, z)
+        return [x, y, z]
+    }
+
+
+    const sleep = async (time) => {
+        const timeOut = (time) => {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    resolve()
+                }, time)
+            })
+        }
+        await timeOut(time)
+    }
+
+    const computeAngle = (pos1, pos2)=> {//  计算两个二维向量之间的夹角
+        let v1 = new THREE.Vector2(...pos1)
+        let v2 = new THREE.Vector2(...pos2)
+        let model = v1.length() * v2.length()
+        let angel = Math.acos(v1.multiply(v2).length()/model)
+        return angel
+    }
+
+    class Glow{
+        constructor(radius, pos = new THREE.Vector3(0, 0, 0)){
+            this.radius = radius
+            this.pos = pos
+            this.mesh = null
+            let v_shader = `
+                uniform vec3 viewVector;
+                uniform float c;
+                uniform float p;
+                varying float intensity;
+                void main() 
+                {
+                    vec3 vNormal = normalize( normalMatrix * normal );
+                    vec3 vNormel = normalize( normalMatrix * viewVector );
+                    intensity = pow(c - dot(vNormal, vNormel), p );
+                    
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+                }
+            `
+            //                    if(dot(vNormal, vNormel) < 0.0){
+                // intensity = 0.0;
+                //     }else{
+            //c表示从什么透明度开始算，决定圈的大小  法向量乘以变换矩阵，计算的单位法向量
+            // p的目的是让本就不足一的再幂次计算之后可以更小,所以p越大越淡  视觉向量乘以变换矩阵，计算的单位法向量
+            //  点乘可以计算出在视觉方向上的投影
+            let f_shader = `
+                uniform vec3 glowColor;
+                varying float intensity;
+                void main() 
+                {
+                    vec3 glow = glowColor * intensity;
+                    gl_FragColor = vec4( glow, 1.0 );
+                }
+            `
+            let sphGeo = new THREE.SphereGeometry(this.radius, 42,42)
+            let sphMat = new THREE.ShaderMaterial({
+                uniforms: {
+                    "c":   { type: "f", value: 0.75 },
+                    "p":   { type: "f", value: 1.4 },
+                    glowColor: { type: "c", value: new THREE.Color(0x00ffff) },
+                    viewVector: { type: "v3", value: camera.position }
+                },
+                vertexShader: v_shader,
+                fragmentShader: f_shader,
+                blending: THREE.AdditiveBlending,
+                transparent: true,
+                side: THREE.FrontSide
+            })
+            this.mesh = new THREE.Mesh(sphGeo, sphMat)
+            this.mesh.position.copy(this.pos)
+            this.mesh.material.uniforms.glowColor.needsUpdate = true
+            // this.mesh.material.uniforms.viewVector.needsUpdate = true
+            this.mesh.geometry.normalsNeedUpdate = true
+            this.matrixAutoUpdate = true
+            this.mesh.geometry.matrixAutoUpdate = true
+            this.mesh.matrixAutoUpdate = true
+            this.init(earth)
+
+        }
+
+        init(scene){
+            scene.add(this.mesh)
+        }
+
+        updateColor(color){
+            this.mesh.material.uniforms.glowColor.value = new THREE.Color(color)
+        }
+
+        updateView(v){
+            this.mesh.material.uniforms.viewVector.value = v
+        }
+
+        getObj(){
+            return this.mesh
+        }
+        
+        updateMatrixWorld(){
+            console.log(this.mesh.normalMatrix)
+            this.mesh.updateMatrixWorld(true)
+        }
+
+        updateViewVector(){
+            this.mesh.material.uniforms.viewVector.value = camera.position
+        }
+
+        getRotation(str){
+            return this.mesh.rotation[str]
+        }
+
+        setRotattion(str, v){
+            this.mesh.rotation[str] = v
+        }
+    }
+
+
+    class Point {
+        constructor(pos, size){
+            this.pos = pos
+            this.size = size
+            this.Max = size
+            this.MaxTime = 0.001
+            this.mesh = null
+            this.start = Math.random() * Math.PI * 2
+            this.texture = new THREE.TextureLoader().load('./dot.png')
+            let v_shader = `
+                attribute float aSize;
+                void main(){
+                    gl_PointSize = aSize;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1);
+                }
+            `
+            let f_shader = `
+                uniform vec3 color;
+                uniform float time;
+                uniform sampler2D texture;
+                void main(){
+                    if (length(gl_PointCoord - vec2(0.5)) > 0.5){
+                        discard;
+                    }else{
+                        gl_FragColor = vec4(color, sin(time));
+                        gl_FragColor = gl_FragColor * texture2D(texture, gl_PointCoord);
+                    }
+                }
+                `
+            let shadermaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    'time': {
+                        type: 'f', value: 0.0
+                    },
+                    'color': {
+                        type: 'v3', value: new THREE.Color(0x00ffff) 
+                    },
+                    'texture': {
+                        value: this.texture
+                    }
+                },
+                vertexShader: v_shader,
+                fragmentShader: f_shader,
+                transparent: true,
+                blending: THREE.AdditiveBlending
+            })
+            let bufferGeo = new THREE.BufferGeometry()
+            bufferGeo.addAttribute('position', new THREE.BufferAttribute(new Float32Array(this.pos), 3))
+            bufferGeo.addAttribute('aSize', new THREE.BufferAttribute(new Float32Array([this.size]), 1))
+            // console.log(pos, size)
+            this.mesh = new THREE.Points(bufferGeo, shadermaterial)
+            // this.mesh.material.uniforms.time.needUpdate = true
+            this.mesh.geometry.attributes.aSize.needsUpdate = true
+            this.mesh.material.uniforms.time.needsUpdate = true
+            this.mesh.material.uniforms.color.needsUpdate = true
+            this.init(earth)
+        }
+        init(scene){
+            scene.add(this.mesh)
+        }
+
+        updateSize(size){
+            // console.log(size)
+            let attr = this.mesh.geometry.attributes
+            // console.log(attr)
+            attr.aSize.array[0] = size
+            this.mesh.geometry.attributes.aSize.needsUpdate = true
+        }
+
+        shaking(time){
+            this.mesh.material.uniforms.time.value = time
+            this.mesh.material.uniforms.time.needsUpdate = true
+        }
+        updateMaxTime(max, maxtime){
+            this.Max = max
+            this.MaxTime = maxtime
+        }
+        updateColor(color){
+            this.mesh.material.uniforms.color.value = new THREE.Color(color)
+            this.mesh.material.uniforms.time.needsUpdate = true
+        }
+
+        update(){
+            let time = Date.now() * this.MaxTime
+
+            this.updateSize(this.Max + this.Max * Math.sin( this.start + time ))
+            this.shaking(Math.sin( 0.1 - time * this.start))
+            // this.shaking(this.Max + this.Max * Math.sin( this.start + time ))
+        }
+
+    }
+
+    class Line {
+        constructor(start,mid, end, radius = radius, segFlag = false){
+            this.start = start
+            this.end = end
+            this.mid = mid
+            this.radius = radius
+            this.mesh = null
+            this.scene = null
+            let v_shader = `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+                    gl_Position = projectionMatrix * mvPosition;
+                }`
+
+            let define = segFlag ? '#define SEGFLAG': ''
+            let f_shader = `
+                ${define}
+                #define PI 3.141592
+                uniform float time;
+                varying vec2 vUv;
+                uniform vec3 color;
+                void main() {
+                    float alpha;
+                    if (vUv.x > PI * 0.5 ){
+                        alpha = 0.0;
+                    } else {
+                        #ifdef SEGFLAG
+                        alpha = sin(3.0 *(vUv.x*14.0 + time - PI * 0.5));
+                        #else
+                        alpha = sin(1.0 * (vUv.x + time - PI * 0.5));
+                        #endif
+                    }
+                    gl_FragColor = vec4(color, alpha);
+                }`
+                // float alpha;
+                //     if (vUv.x > PI){
+                //         alpha = 0.0;
+                //     } else {
+                //         alpha = 1.2 * (vUv.x* 2.0 + time);
+                //     }
+                //                 #define PI 3.141592  
+                //alpha =  clamp(1.2 * (vUv.x * 2.0 + time), 0, 1);
+               // gl_FragColor = vec4(color,sin(4.5*(vUv.x*2.0 + (time*1.0))));
+                                   // gl_FragColor = vec4(color, alpha);
+
+            let sPos = new THREE.Vector3(...this.start)
+            let ePos = new THREE.Vector3(...this.end)
+            let midpos = new THREE.Vector3(...this.mid)
+            // .multiplyScalar(0.5)
+            let curve3 = new THREE.QuadraticBezierCurve3(sPos, midpos, ePos)
+            let tubeGeo = new THREE.TubeGeometry(curve3, this.radius * 10, this.radius / 400, 4, false)
+            let shaderMat = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: {
+                        type: 'f', value: 0.0
+                    },
+                    color: {
+                        type: 'v3', value: new THREE.Color(0xff0000)
+                    }
+                }, 
+                vertexShader: v_shader,
+                fragmentShader: f_shader,
+                transparent: true,
+                alphaTest: 0.5,
+                blending: THREE.AdditiveBlending
+            })
+            this.mesh = new THREE.Mesh(tubeGeo, shaderMat)
+            this.mesh.material.uniforms.time.needsUpdate = true
+            // this.init(earth)
+        }
+        init(scene){
+            scene.add(this.mesh)
+            this.scene = scene
+        }
+        get time(){
+            return this.mesh.material.uniforms.time.value
+        }
+        set time(time){
+            this.mesh.material.uniforms.time.value = time
+        }
+        update(){
+            let time = this.time + 0.01
+            this.time = time
+        }
+        updateTime(time){
+            this.time = time
+        }
+        dispose(){
+            this.scene.remove(this.mesh)
+            this.mesh.geometry.dispose()
+            this.mesh.material.dispose()
+        }
+
+    }
+
+    //    ////////ceshi////////    // 
+    // let testDate = [239.547725,36.729011]
+    // let point = new Point(lglt2xyz(testDate[0], testDate[1], radius), 10.1)
+    // let mocks = [[63.761177, -157.456742], [50.676731,12.387102], [-27.729899,35.775323], [-63.347066,37.904516], [-36.266245,-54.639493],[239.547725,36.729011], [255.44299,43.285017], [282.229454,39.290507], [306.07235,48.617559], [261.330124,19.335095], [286.056091,-4.874226], [303.42314,-3.692152]]
+    // let points = []
+    let points = new THREE.Group()
+    let lis = new THREE.Group()
+    earth.add(lis)
+    let pois = []
+    let key = 0
+    let mocks = [
+    [140.08665086995143, -21.528081591486785, 51.61815584964143], 
+    [131.21051523142438, 52.737822080275365, 51.45307102022266],
+    [134.72477165694994, 57.130907112464136, -35.40221950930598],
+    [110.69042649885557,99.98433406172424, 20.035771342022098],
+    [-53.17611588036692,69.60698686657398, 122.84338944086126],
+    [-37.29055009304358, -127.55452235081766, 71.0453985379562], // keyong
+    [-62.482444358694735, 136.893633011777, 3.83726442680293], // keyong
+    [32.15982683976563, 143.84699327458847, 30.183062505352662], // keyong
+    [57.90126868100803,53.22412698673247, 128.7819656160627],  // keyong  23.046873238262332, y: 98.93454450933177, z: 109.92141808122125
+    [-40.6684408068555,55.57948750783768, 134.35449132667634],  //keyong  x: -34.67997121711849, y: 92.10853660571496, z: 112.90022355847059}
+    [-3.6204968529346644,37.855841327466244, 146.01264841801714],  //keyong x: -12.675496207523366, y: 87.73784080284125, z: 120.90506020077581
+    [-26.50837463164467,123.07918971136621, 82.62787278735183]
+]
+
+    let tiaoban = [
+        [128.63537051362, 52.10767147908841, -58.41930492585123],  //第一个点，  中点：134.86642969924728, y: -37.20713372865582, z: -55.745569665260554
+        [78.60158949660837, -118.45050450519982, -49.65779733287826],  //第二个点， 中点：138.66642222126285, y: -58.44668885528949, z: 1.4519044000935666
+        [140.08665086995143, -21.528081591486785, 51.61815584964143], // 第三个点， 中点：[ 92.39018407944224 * 1.8, 107.61259850715699 * 1.8, 47.404321893238176 * 1.8]
+        [-26.50837463164467,123.07918971136621, 82.62787278735183] //  第四个点，
+    ] 
+
+    let tbMids  = [
+        [134.86642969924728 * 1.6, -37.20713372865582 * 1.6, -55.745569665260554 * 1.6],
+        [138.66642222126285 * 1.6, -58.44668885528949 * 1.6, 1.4519044000935666 * 1.6],
+        [92.39018407944224 * 1.8, 107.61259850715699 * 1.8, 47.404321893238176 * 1.8]
+    ]
+
+
+    let mids = [
+        [-12.675496207523366, 87.73784080284125, 120.90506020077581],
+        [-34.67997121711849, 92.10853660571496, 112.90022355847059],
+        [23.046873238262332, 98.93454450933177, 109.92141808122125],
+        [0.6232789887520589, 135.7020786548086, 63.542992061141945],
+        [-50.49521167937603, 132.6750936201187, 47.22051301957697],
+        [-116.26872190825497 * 1.45, -13.698966511465201 * 1.45, 93.2489871285097 * 1.45]
+    ]
+    for(let mock of mocks){
+        // ++key < 2 &&
+        let p = new Point(mock, 4.1)
+        pois.push(p)
+        p.init(points)
+    }
+
+    for(let [index,pos] of posss.entries()){//  减少一般的点
+        if(index%3 === 0){
+            let p = new Point(lglt2xyz(pos[0], pos[1], radius + 1), 4.1)
+            p.init(points)
+            pois.push(p)
+            }
+    }
+
+    for(let i = 0; i < 2; i ++){
+        let p = new Point(tiaoban[i], 4.1)
+        p.init(points)
+        pois.push(p)
+    }
+
+
+    earth.add(points)
+    console.log(points)
+    let glow = new Glow(150.5)
+    console.log(glow.getObj())
+    console.log(camera.position)
+    // for(let point of points){
+    //     //   point.update()
+    //     point.shaking(Math.PI / 2)
+    //   }
+    
+
+    const render = () => {
+        control.update()
+      requestAnimationFrame(render)
+      renderer.render(scene, camera)
+      for(let point of pois){
+          point.update()
+        // point.shaking(Math.PI / 2)
+      }
+    //   line.update()
+      TWEEN.update()
+    //   console.log(camera.position)
+    }
+    render()
+
+    const select = () => {
+
+    }
+
+    var raycaster = new THREE.Raycaster()
+    var mouse = new THREE.Vector2()
+    const click = (event) => {
+        mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1
+        mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1
+        raycaster.setFromCamera( mouse, camera )
+        var intersects = raycaster.intersectObjects(earth.children)
+        if(intersects.length > 0){
+            console.log(intersects[0].point)
+        }else{
+            console.log('no select')
+        }
+    }
+
+    // window.addEventListener('click', click, false)
+
+    const ani1 = (time) => {  // 转动
+        return new Promise((resolve, reject) => {
+            let rot = points.rotation.z
+            // let rot = glow.getRotation('z')
+            new TWEEN.Tween({x: rot})
+            .to({x: rot - Math.PI * 2}, time)
+            .onUpdate(function(){
+                points.rotation.z = this.x
+                spEarth.rotation.z = this.x
+                // console.log(earth.normalMatrix)
+                // earth.updateMatrixWorld(true)
+                // glow.setRotattion('z', this.x)
+            })
+            .onComplete(() => {
+                points.rotation.z = rot
+                spEarth.rotation.z = rot
+                resolve()
+            })
+            .start()
+        })
+    }
+
+    let firLine = null
+    const tbAni = (pos1, midpos, pos2, time, zf = -1,yf = -1, xf = -1,tartget = Math.PI * 1.3) => {  // 转动 + 线飞出
+        return new Promise((resolve, reject) => {
+            // let pos1 = mocks[0]
+            // let pos2 = mocks[mocks.length - 1]
+            // let midpos = [ 92.39018407944224 * 1.8, 107.61259850715699 * 1.8, 47.404321893238176 * 1.8]
+            firLine = new Line(pos2,midpos, pos1, radius)
+            firLine.init(lis)
+            let z = computeAngle([pos1[0], pos1[1]], [pos2[0], pos2[1]])
+            let y = computeAngle([pos1[0], pos1[2]], [pos2[0], pos2[2]])
+            let x = computeAngle([pos1[1], pos1[2]], [pos2[1], pos2[2]])
+            let rotz = points.rotation.z
+            let roty = points.rotation.y
+            let rotx = points.rotation.x
+            let t = new TWEEN.Tween({x: 0, z: rotz, y: roty, w: rotx})
+            .to({x: tartget, z: rotz + zf * z, y: roty + yf * y, w: rotx + xf * x}, time)// , a: pos1[0], b: pos1[1], c: pos1[2]
+            .onUpdate(function(){
+                firLine.updateTime(this.x)
+                // camera.lookAt(new THREE.Vector3(this.a, this.b, this.c).multiplyScalar(Math.sin(this.x)))
+                // console.log(new THREE.Vector3(this.a, this.b, this.c).multiplyScalar(Math.sin(this.x)))
+                points.rotation.z = this.z
+                spEarth.rotation.z = this.z
+                lis.rotation.z = this.z
+                points.rotation.y = this.y
+                spEarth.rotation.y = this.y
+                lis.rotation.y = this.y
+                // earth.rotation.x = this.w
+            })
+            .onComplete( ()=> {
+                resolve()
+            })
+            .start()
+        })
+    }
+
+    
+    const ani4 = (time, s = Math.PI * 1.0,e = Math.PI * 1.5, firLine = firLine) => {  // 飞线消失
+        console.log('飞线消失')
+        return new Promise((resolve, reject) => {
+            new TWEEN.Tween({x: s})
+            .to({x: e}, time)
+            .onUpdate(function(){
+                firLine.updateTime(this.x)
+            })
+            .onComplete( ()=> {
+                firLine.dispose()
+                resolve()
+            })
+            .start()
+        })
+    }
+
+    const ani2 = async(time) => {
+       await tbAni(tiaoban[0], tbMids[0], tiaoban[1], time, 1, -1)
+       ani4(4000, Math.PI * 1.3, Math.PI * 1.5, firLine)
+       await tbAni(tiaoban[1], tbMids[1], tiaoban[2], time, -1, 1)
+       ani4(4000, Math.PI * 1.3, Math.PI * 1.5, firLine)
+       await tbAni(tiaoban[2], tbMids[2], tiaoban[3], time, -1, 1, Math.PI)
+    }
+
+    const tweenAni = (s,m,e, time) => { 
+        return new Promise((resolve, reject) => {
+            let mid = [m[0] * 1.5, m[1] * 1.5, m[2] * 1.5]
+            let line = new Line(s, mid, e, radius, true)
+            line.init(lis)
+            new TWEEN.Tween({x: 0})
+            .to({x: Math.PI * 1.5}, time)
+            .onUpdate(function(){
+                line.updateTime(this.x)
+            })
+            .onComplete(()=> {
+                line.dispose()
+                resolve()
+            })
+            .start()
+        })
+    }
+    const ani3 = (time) => {  //  相机移动
+        return new Promise((resolve, reject) => {
+            let campos = camera.position
+            let roty =  points.rotation.y
+            let rotx = points.rotation.x
+            let aimpos = {x: 322.4059030551958, y: 103.22302862663099, z: 231.29945965416084}
+            new TWEEN.Tween({x: campos.x,y: campos.y,z: campos.z, r: roty, w: rotx})
+            .to({x: aimpos.x, y: aimpos.y, z: aimpos.z, r: 0, w: 0}, time)
+            .onUpdate(function(){
+                camera.position.set(this.x, this.y, this.z)
+                points.rotation.y = this.r
+                spEarth.rotation.y = this.r
+                lis.rotation.y = this.r
+                // earth.rotation.x = this.w
+                camera.lookAt(scene.position)
+            })
+            .onComplete(() => {
+                resolve()
+            })
+            .start()
+        })
+    }
+
+    const ani5 = (time) => { // 飞线簇
+        let posStart = mocks[mocks.length - 1]
+        for(let [index, mid] of mids.entries()){
+           tweenAni(mocks[mocks.length - 2 - index], mid, posStart, time)
+        }
+    }
+
+    let planeTexture = new THREE.TextureLoader().load('./dot.png')
+    let sphs = new THREE.Group()
+
+    const ani6 = (time) => {  // 点
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                for(let i=5; i<11; i++ ){
+                    // points[i].updateMaxTime(40, 0.007)
+                    pois[i].updateColor(0xff0000)
+                    // console.log(points[i])
+                    let pointPos = pois[i].pos
+                    console.log(...pointPos)
+                    let sph = new THREE.Mesh(new THREE.PlaneGeometry(15, 15), new THREE.MeshBasicMaterial({
+                        transparent: true,
+                        opacity: 0.3,
+                        color: 0xff0000,
+                        map: planeTexture,
+                        side: THREE.BackSide,
+                        blending: THREE.AdditiveBlending
+                    }))
+                    sph.position.set(...pointPos)
+                    sph.scale.set(0.1,0.1,0.1)
+                    sph.lookAt(scene.position)
+                    // sphs.add(sph)
+                    points.add(sph)
+                    new TWEEN.Tween({x: 0.1})
+                    .to({x: 1})
+                    .onUpdate(function() {
+                        sph.scale.set(this.x,this.x,this.x)
+                    })
+                    .start()
+                }
+                resolve()
+            }, time)
+        })
+    }
+
+    const aniDo = async () => { // 动画总执行
+        await ani1(5000)
+        await ani2(7000)
+        await ani3(2000)
+        ani4(1500,Math.PI * 1.0, Math.PI * 1.5, firLine)
+        ani5(2000)
+        await ani6(2000)
+    }
+
+    $(document).one('click', () => {
+        $('#tip').hide()
+        aniDo()
+    })  
+
+    // ani4(2000)
+</script>
+</html>

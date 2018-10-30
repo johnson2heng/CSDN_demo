@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Title</title>
+    <style>
+        body {
+            margin: 0;
+            text-align: center;
+        }
+
+        #canvas {
+            margin: 0;
+        }
+    </style>
+</head>
+<body onload="main()">
+<canvas id="canvas" height="800" width="1200"></canvas>
+</body>
+<script src="/lib/webgl-utils.js"></script>
+<script src="/lib/webgl-debug.js"></script>
+<script src="/lib/cuon-utils.js"></script>
+<script src="/lib/cuon-matrix.js"></script>
+<script>
+    //顶点着色器
+    var VSHADER_SOURCE = "" +
+        "attribute vec4 a_Position;\n" +
+        "attribute vec4 a_Color;\n" +
+        "uniform mat4 u_ModelViewMatrix;\n" +
+        "varying vec4 v_Color;\n" +
+        "void main(){" +
+        "   gl_Position = u_ModelViewMatrix * a_Position;\n" +
+        "   v_Color = a_Color;\n" +
+        "}\n";
+
+    //片元着色器
+    var FSHADER_SOURCE = "" +
+        "#ifdef GL_ES\n" +
+        "precision mediump float;\n" +
+        "#endif\n" +
+        "varying vec4 v_Color;\n" +
+        "void main(){" +
+        "   gl_FragColor = v_Color;\n" +
+        "}\n";
+
+    //声明js需要的相关变量
+    var canvas = document.getElementById("canvas");
+    var gl = getWebGLContext(canvas);
+
+    function main() {
+        if (!gl) {
+            console.log("你的浏览器不支持WebGL");
+            return;
+        }
+
+        //初始化着色器
+        if (!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
+            console.log("无法初始化着色器");
+            return;
+        }
+
+        var n = initVertexBuffers(gl);
+        if (n < 0) {
+            console.log("无法创建缓冲区");
+            return;
+        }
+
+        //设置视角矩阵的相关信息
+        var u_ModelViewMatrix = gl.getUniformLocation(gl.program, "u_ModelViewMatrix");
+        if (u_ModelViewMatrix < 0) {
+            console.log("无法获取矩阵变量的存储位置");
+            return;
+        }
+
+        //设置底色
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+        //进入场景初始化
+        draw(gl, n, u_ModelViewMatrix);
+    }
+
+    function draw(gl, n, u_ModelViewMatrix) {
+        //设置视角矩阵的相关信息（视点，视线，上方向）
+        var viewMatrix = new Matrix4();
+        viewMatrix.setLookAt(0,0,5,0,0,-100,0,1,0);
+
+        //设置模型矩阵的相关信息
+        var modelMatrix = new Matrix4();
+        modelMatrix.setRotate(0, 0, 0, 1);
+
+        //设置透视投影矩阵
+        var projMatrix = new Matrix4();
+        projMatrix.setPerspective(30,canvas.width/canvas.height,1,100);
+
+        //计算出模型视图矩阵 viewMatrix.multiply(modelMatrix)相当于在着色器里面u_ViewMatrix * u_ModelMatrix
+        var modeViewMatrix = projMatrix.multiply(viewMatrix.multiply(modelMatrix));
+
+        //将试图矩阵传给u_ViewMatrix变量
+        gl.uniformMatrix4fv(u_ModelViewMatrix, false, modeViewMatrix.elements);
+
+        //开启隐藏面清除
+        gl.enable(gl.DEPTH_TEST);
+        
+        //清空颜色和深度缓冲区
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        //绘制图形
+        gl.drawArrays(gl.TRIANGLES, 0, n);
+
+    }
+
+    function initVertexBuffers(gl) {
+        var verticesColors = new Float32Array([
+            // 右侧的三个三角形
+            0.75,  1.0,  -4.0,  0.4,  1.0,  0.4, // 后面的绿色
+            0.25, -1.0,  -4.0,  0.4,  1.0,  0.4,
+            1.25, -1.0,  -4.0,  1.0,  0.4,  0.4,
+
+            0.75,  1.0,  -2.0,  1.0,  1.0,  0.4, // 中间的黄色
+            0.25, -1.0,  -2.0,  1.0,  1.0,  0.4,
+            1.25, -1.0,  -2.0,  1.0,  0.4,  0.4,
+
+            0.75,  1.0,   0.0,  0.4,  0.4,  1.0,  // 前面的蓝色
+            0.25, -1.0,   0.0,  0.4,  0.4,  1.0,
+            1.25, -1.0,   0.0,  1.0,  0.4,  0.4,
+
+            // 左侧的三个三角形
+
+            -0.75,  1.0,   0.0,  0.4,  0.4,  1.0,  // 前面的蓝色
+            -1.25, -1.0,   0.0,  0.4,  0.4,  1.0,
+            -0.25, -1.0,   0.0,  1.0,  0.4,  0.4,
+
+            -0.75,  1.0,  -2.0,  1.0,  1.0,  0.4, // 中间的黄色
+            -1.25, -1.0,  -2.0,  1.0,  1.0,  0.4,
+            -0.25, -1.0,  -2.0,  1.0,  0.4,  0.4,
+
+            -0.75,  1.0,  -4.0,  0.4,  1.0,  0.4, // 后面的绿色
+            -1.25, -1.0,  -4.0,  0.4,  1.0,  0.4,
+            -0.25, -1.0,  -4.0,  1.0,  0.4,  0.4,
+        ]);
+
+        var n = 18;//一共18个顶点
+
+        //创建缓冲区对象
+        var vertexColorBuffer = gl.createBuffer();
+        if (!vertexColorBuffer) {
+            console.log("无法创建缓冲区对象");
+            return -1;
+        }
+
+        //绑定缓冲区对象并写入数据
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW);
+
+        //获取数组中一个元素所占的字节数
+        var fsize = verticesColors.BYTES_PER_ELEMENT;
+
+        //获取顶点位置变量位置
+        var a_Position = gl.getAttribLocation(gl.program, "a_Position");
+        if (a_Position < 0) {
+            console.log("无法获取顶点位置的存储变量");
+            return -1;
+        }
+
+        //对位置的顶点数据进行分配，并开启
+        gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, fsize * 6, 0);
+        gl.enableVertexAttribArray(a_Position);
+
+        //获取顶点颜色的变量
+        var a_Color = gl.getAttribLocation(gl.program, "a_Color");
+        if (a_Color < 0) {
+            console.log("无法获取顶点位置的存储变量");
+            return -1;
+        }
+
+        //对位置的顶点数据进行分配，并开启
+        gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, fsize * 6, fsize * 3);
+        gl.enableVertexAttribArray(a_Color);
+
+        return n;
+    }
+</script>
+</html>

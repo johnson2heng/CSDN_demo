@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style type="text/css">
+        html, body {
+            margin: 0;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+
+    </style>
+</head>
+<body onload="draw();">
+
+</body>
+<script src="/lib/three.js"></script>
+<script src="/lib/js/controls/TrackballControls.js"></script>
+<script>
+    var renderer;
+    function initRender() {
+        renderer = new THREE.WebGLRenderer({antialias:true});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+    }
+
+    var camera;
+    function initCamera() {
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 1, 10000);
+        camera.position.set(0, 0, 400);
+    }
+
+    var scene;
+    function initScene() {
+        scene = new THREE.Scene();
+    }
+
+    var light;
+    function initLight() {
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        light = new THREE.DirectionalLight(0xffffff);
+        light.position.set(1,1,1);
+        scene.add(light);
+    }
+
+    function initModel() {
+        var map = new THREE.TextureLoader().load("/lib/textures/UV_Grid_Sm.jpg");
+        var material = new THREE.MeshLambertMaterial({map:map});
+
+        var cube = new THREE.Mesh(new THREE.BoxGeometry(100, 200, 100, 1, 1, 1), material);
+        scene.add(cube);
+    }
+
+    //用户交互插件 鼠标左键按住旋转，右键按住平移，滚轮缩放
+    var controls;
+    function initControls() {
+        controls = new THREE.TrackballControls( camera );
+        //旋转速度
+        controls.rotateSpeed = 5;
+        //变焦速度
+        controls.zoomSpeed = 3;
+        //平移速度
+        controls.panSpeed = 0.8;
+        //是否不变焦
+        controls.noZoom = false;
+        //是否不平移
+        controls.noPan = false;
+        //是否开启移动惯性
+        controls.staticMoving = false;
+        //动态阻尼系数 就是灵敏度
+        controls.dynamicDampingFactor = 0.3;
+        //未知，占时先保留
+        //controls.keys = [ 65, 83, 68 ];
+        controls.addEventListener( 'change', render );
+    }
+
+    function render() {
+        renderer.render( scene, camera );
+    }
+
+    //窗口变动触发的函数
+    function onWindowResize() {
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        controls.handleResize();
+        render();
+        renderer.setSize( window.innerWidth, window.innerHeight );
+
+    }
+
+    function animate() {
+        //更新控制器
+        controls.update();
+        render();
+        requestAnimationFrame(animate);
+    }
+
+    function draw() {
+        initRender();
+        initScene();
+        initCamera();
+        initLight();
+        initModel();
+        initControls();
+
+        animate();
+        window.onresize = onWindowResize;
+    }
+</script>
+</html>

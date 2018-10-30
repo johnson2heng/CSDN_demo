@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Title</title>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        #canvas,#hud {
+            margin: 0;
+            display: block;
+            position: absolute;
+        }
+
+        #canvas{
+            z-index: 0;
+        }
+
+        #hud{
+            z-index: 1;
+        }
+    </style>
+</head>
+<body onload="main()">
+<canvas id="canvas" height="800" width="1200"></canvas>
+<canvas id="hud"></canvas>
+</body>
+<script src="/lib/webgl-utils.js"></script>
+<script src="/lib/webgl-debug.js"></script>
+<script src="/lib/cuon-utils.js"></script>
+<script src="/lib/cuon-matrix.js"></script>
+<script>
+    //设置WebGL全屏显示
+    var canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    //设置显示hud的canvas全屏显示
+    var hud = document.getElementById("hud");
+    hud.width = window.innerWidth;
+    hud.height = window.innerHeight;
+
+    //顶点着色器
+    var vertexShaderSource = "" +
+        "attribute vec4 a_Position;\n" +
+        "attribute vec4 a_Color;\n" +
+        "attribute float a_Face;\n" +//表面编号，不是用int类型
+        "uniform mat4 u_MvpMatrix;\n" +
+        "uniform int u_PickedFace;\n" + //被选中的表面编号
+        "varying vec4 v_Color;\n" +
+        "void main (){\n" +
+        "   gl_Position = u_MvpMatrix * a_Position;\n" +
+        "   int face = int(a_Face);\n" +
+        "   vec3 color = (face == u_PickedFace) ? vec3(1.0) : a_Color.rgb;\n" +
+        "   if(u_PickedFace == 0){\n" +
+        "       v_Color = vec4(color, a_Face/255.0);\n" +
+        "   }else{\n" +
+        "       v_Color = vec4(color, a_Color.a);\n" +
+        "   }\n" +
+        "}\n";
+
+    //片元着色器
+    var fragmentShaderSource = "" +
+        "#ifdef GL_ES\n" +
+        "precision mediump float;\n" +
+        "#endif\n" +
+        "varying vec4 v_Color;\n" +
+        "void main(){\n" +
+        "   gl_FragColor = v_Color;\n" +
+        "}\n";
+
+    function main() {
+        //获取WebGL对象
+        var gl = getWebGLContext(canvas);
+        var ctx = hud.getContext("2d");
+
+        //初始化着色器
+        initShaders(gl, vertexShaderSource, fragmentShaderSource);
+
+        //将数据存入缓冲区
+        var n = initVertexBuffers(gl);
+        if (n < 0) {
+            console.log("数据存入缓冲区失败");
+            return;
+        }
+
+        //设置背景色和开启层级关系
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.enable(gl.DEPTH_TEST);
+
+        //获取uniform变量的存储位置
+        var u_MvpMatrix = gl.getUniformLocation(gl.program, "u_MvpMatrix");
+        var u_PickedFace = gl.getUniformLocation(gl.program, "u_PickedFace");
+        if (!u_MvpMatrix || !u_PickedFace) {
+            console.log("无法获取相关的存储位置");
+            return;
+        }
+
+        //设置视点和投影矩阵
+        var viewProjectionMatrix = new Matrix4();
+        viewProjectionMatrix.setPerspective(30.0, canvas.width / canvas.height, 1.0, 100.0);
+        viewProjectionMatrix.lookAt(0.0, 0.0, 7.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+
+        //设置一个自动转圈的变量
+        var currentAngle = 0.0;
+
+        // 初始化被选中的表面的变量
+        gl.uniform1i(u_PickedFace, -1);
+
+        hud.onmousedown = function (e) {
+            //鼠标按下时，将u_PickedFace修改为0，然后重新绘制场景
+            gl.uniform1i(u_PickedFace, 0);
+            draw(gl, n, currentAngle, viewProjectionMatrix, u_MvpMatrix);
+            //因为绘制的场景将代表下标的存入了a的值内，所以需要获取颜色来获取下标
+            var pixels = new Uint8Array(4); //存储获取的颜色的变量
+            gl.readPixels(e.offsetX, window.innerHeight - e.offsetY, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+            //给u_PickedFace赋值然后交给顶点着色器判断是否相同
+            gl.uniform1i(u_PickedFace, pixels[3]);
+            draw(gl, n, currentAngle, viewProjectionMatrix, u_MvpMatrix);
+        };
+
+        //定时绘制页面
+        var tick = function () {
+            currentAngle = animate(currentAngle);
+            draw2D(ctx, currentAngle);
+            draw(gl, n, currentAngle, viewProjectionMatrix, u_MvpMatrix);
+            requestAnimationFrame(tick);
+        };
+
+        tick();
+    }
+
+    //修改currentAngle的值
+    var last = +new Date();
+    var angleStep = 20.0;//每次旋转的速度
+    function animate(currentAngle) {
+        var now = +new Date();
+        var elapsed = now - last;
+        last = now;
+
+        //这里是为了保证旋转保证匀速旋转
+        var newAngle = currentAngle + (angleStep * elapsed) / 1000;
+        return newAngle % 360;
+    }
+
+    //设置顶点数据和将数据存入缓冲区
+    function initVertexBuffers(gl) {
+        // Create a cube
+        //    v6----- v5
+        //   /|      /|
+        //  v1------v0|
+        //  | |     | |
+        //  | |v7---|-|v4
+        //  |/      |/
+        //  v2------v3
+
+        var vertices = new Float32Array([   // Vertex coordinates 顶点的位置数据
+            1.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0,    // v0-v1-v2-v3 front
+            1.0, 1.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0,    // v0-v3-v4-v5 right
+            1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0,    // v0-v5-v6-v1 up
+            -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.0,    // v1-v6-v7-v2 left
+            -1.0, -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0,    // v7-v4-v3-v2 down
+            1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0     // v4-v7-v6-v5 back
+        ]);
+
+        var colors = new Float32Array([   // Colors 顶点的颜色数据
+            0.32, 0.18, 0.56, 0.32, 0.18, 0.56, 0.32, 0.18, 0.56, 0.32, 0.18, 0.56, // v0-v1-v2-v3 front
+            0.5, 0.41, 0.69, 0.5, 0.41, 0.69, 0.5, 0.41, 0.69, 0.5, 0.41, 0.69,  // v0-v3-v4-v5 right
+            0.78, 0.69, 0.84, 0.78, 0.69, 0.84, 0.78, 0.69, 0.84, 0.78, 0.69, 0.84, // v0-v5-v6-v1 up
+            0.0, 0.32, 0.61, 0.0, 0.32, 0.61, 0.0, 0.32, 0.61, 0.0, 0.32, 0.61,  // v1-v6-v7-v2 left
+            0.27, 0.58, 0.82, 0.27, 0.58, 0.82, 0.27, 0.58, 0.82, 0.27, 0.58, 0.82, // v7-v4-v3-v2 down
+            0.73, 0.82, 0.93, 0.73, 0.82, 0.93, 0.73, 0.82, 0.93, 0.73, 0.82, 0.93 // v4-v7-v6-v5 back
+        ]);
+
+        var faces = new Uint8Array([   // Faces  顶点的面的数据
+            1, 1, 1, 1,     // v0-v1-v2-v3 front
+            2, 2, 2, 2,     // v0-v3-v4-v5 right
+            3, 3, 3, 3,     // v0-v5-v6-v1 up
+            4, 4, 4, 4,     // v1-v6-v7-v2 left
+            5, 5, 5, 5,     // v7-v4-v3-v2 down
+            6, 6, 6, 6     // v4-v7-v6-v5 back
+        ]);
+
+        var indices = new Uint8Array([   // Indices of the vertices 顶点的索引数据
+            0, 1, 2, 0, 2, 3,    // front
+            4, 5, 6, 4, 6, 7,    // right
+            8, 9, 10, 8, 10, 11,    // up
+            12, 13, 14, 12, 14, 15,    // left
+            16, 17, 18, 16, 18, 19,    // down
+            20, 21, 22, 20, 22, 23     // back
+        ]);
+
+        //存入缓冲区
+        if (!initArrayBuffer(gl, vertices, gl.FLOAT, 3, "a_Position")) {
+            return -1;
+        }
+        if (!initArrayBuffer(gl, colors, gl.FLOAT, 3, "a_Color")) {
+            return -1;
+        }
+        if (!initArrayBuffer(gl, faces, gl.UNSIGNED_BYTE, 1, "a_Face")) {
+            return -1;
+        }
+
+        //创建索引缓冲区
+        var indexBuffer = gl.createBuffer();
+        if (indexBuffer < 0) {
+            console.log("无法创建缓冲区");
+            return -1;
+        }
+
+        //取消ARRAY_BUFFER中的绑定
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+        return indices.length;
+    }
+
+    function initArrayBuffer(gl, data, type, num, attribute) {
+        var buffer = gl.createBuffer();
+        if (!buffer) {
+            console.log("无法创建缓冲区对象");
+            return;
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+        var a_attribute = gl.getAttribLocation(gl.program, attribute);
+        if (a_attribute < 0) {
+            console.log("无法获取变量的存储位置" + attribute);
+            return false;
+        }
+        gl.vertexAttribPointer(a_attribute, num, type, false, 0, 0);
+        gl.enableVertexAttribArray(a_attribute);
+
+        return true;
+    }
+
+    //绘制
+    var matrix = new Matrix4();
+    function draw(gl, n, currentAngle, viewProjectionMatrix, u_MvpMatrix) {
+        matrix.set(viewProjectionMatrix);
+        matrix.rotate(currentAngle, 1.0, 0.0, 0.0);
+        matrix.rotate(currentAngle, 0.0, 1.0, 0.0);
+        matrix.rotate(currentAngle, 0.0, 0.0, 1.0);
+        gl.uniformMatrix4fv(u_MvpMatrix, false, matrix.elements);
+
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0);
+    }
+
+    //绘制hud
+    function draw2D(ctx, currentAngle) {
+        ctx.clearRect(0, 0, 400, 400); // 清除 <hud>
+        // 用白色的线绘制三角形
+        ctx.beginPath();                      // 开始绘制
+        ctx.moveTo(120, 10); ctx.lineTo(200, 150); ctx.lineTo(40, 150);
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 1)'; // 设置线条的颜色
+        ctx.stroke();                           // 用白色的线条绘制三角形
+        // 绘制白色的文本
+        ctx.font = '18px "Times New Roman"';
+        ctx.fillStyle = 'rgba(255, 255, 255, 1)'; // 设置文本颜色
+        ctx.fillText('HUD: 头部上方显示', 40, 180);
+        ctx.fillText('三角形是通过canvas2d绘制', 40, 200);
+        ctx.fillText('立方体是通过WebGL接口绘制', 40, 220);
+        ctx.fillText('实时旋转角度: '+ Math.floor(currentAngle), 40, 240);
+    }
+</script>
+</html>

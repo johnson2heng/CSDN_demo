@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="renderer" content="webkit">
+    <meta name="Software-Name" content="Jietusoft">
+    <title></title>
+    <meta name="Description" content="">
+    <!--引入引导js 动态下载播放器-->
+    <script language="javascript" type="text/javascript" src="js/dat.gui.min.js"></script>
+    <script language="javascript" type="text/javascript" src="assets/jsvto/player/dop.min.js"></script>
+    <script language="javascript" type="text/javascript" src="assets/jsvto/player/streetsapePlayer.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            background: #A7A7A7;
+        }
+
+        #pano-wrap {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        #pano {
+            position: absolute;
+            overflow: hidden;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+    </style>
+    <!--<script src="https://johnson2heng.github.io/vConsole/dist/vconsole.min.js"></script>
+    <script>
+        // init vConsole
+        var vConsole = new VConsole();
+        console.log('Hello world');
+    </script>-->
+</head>
+
+<body>
+<div id="pano-wrap">
+    <div id="pano"></div>
+</div>
+</body>
+<script language="javascript" type="text/javascript">
+    var scene, dop = new Dop(), delimiter_pattern = /\s+/, positionConfig, sourceConfig;
+    var params = {
+        filePath: "images/TopoPano_Nan/_3D_pos.txt",
+        verticalShift: -35,
+        currentIndex: 0,
+        spacingScale: 21,
+        planeScale: .2,
+        minPolarAngle: -90,
+        maxPolarAngle: 90,
+        scenesArr: [],
+        initOverCallBack: function (scene) {
+            console.log(scene);
+        }
+    };
+
+    var dat = new dat.GUI();
+
+    var settings = {
+        target: 0,
+        changeScene: function () {
+            //获取场景所有位置热点
+            scene.plane.children.forEach(function (item) {
+                if (item.name === "location" && item.userData.index == settings.target) {
+                    scene.changeScene(item);
+                }
+            });
+        },
+        show: false,
+        setDisplay: function () {
+            scene.setDisplayByName(settings.target, settings.show);
+        },
+        getPTF: function () {
+            console.log(scene.getScenePTF());
+        },
+        downLoadImage: function () {
+            scene.downLoadImage();
+        },
+        getUV: function () {
+            console.log(scene.getSceneUV());
+        }
+    };
+
+    dat.add(settings, "target", 0, 21).step(1).name("场景下标");
+    dat.add(settings, "changeScene").name("切换场景");
+    dat.add(settings, "show").name("位置显示");
+    dat.add(settings, "setDisplay").name("设置显示");
+    dat.add(settings, "getPTF").name("获取坐标");
+    dat.add(settings, "downLoadImage").name("屏幕截图");
+    dat.add(settings, "getUV").name("获取UV");
+
+    //加载所需要的数据
+    dop.get("./images/block/config.json", function (data) {
+        let config = JSON.parse(data);
+
+        let arr = [];
+
+        config.forEach(function (item) {
+
+            item.sceneBlockModel.fileBlockDir = item.fileBlockDir.split("/SkyUpload/pano/2018/10-17/10/")[1].split("/Block/")[0];
+            item.sceneBlockModel.fileBlockDir = "./images/block/" + item.sceneBlockModel.fileBlockDir + "/Block/";
+
+            /*arr.push({
+                name: Number(item.sceneName.split("_ROT_SRC_00")[1]),
+                block: item.sceneBlockModel
+            });*/
+
+            arr[Number(item.sceneName.split("_ROT_SRC_00")[1])] = item.sceneBlockModel;
+        });
+
+        sourceConfig = arr;
+
+        createConfig();
+    });
+
+    dop.get(params.filePath, function (data) {
+        positionConfig = data;
+
+        createConfig();
+    });
+
+    //生成配置项
+    function createConfig() {
+
+        if (!positionConfig || !sourceConfig) {
+            return;
+        }
+
+        let dataArr = positionConfig.split("\n");
+
+        //生成位置数据，对应所有图片的位置
+        let positionArr = [];
+        let len = +dataArr[0] + 1;
+        for (let i = 1; i < len; i++) {
+            positionArr.push(dataArr[i].split(delimiter_pattern));
+        }
+
+        //生成图片
+        for (let i = 0; i < positionArr.length; i++) {
+            params.scenesArr.push({
+                "sceneId": "v1",
+                "sceneName": i + 1,
+                "sceneFilePath": sourceConfig[i + 1].fileBlockDir + "preview.jpg",
+                "sceneType": "Image",
+                "sceneModel": "Sphere",
+                "sceneBlockModel": sourceConfig[i + 1],
+                "sceneSpeed": 0.8,
+                "initPan": 0,
+                "initTilt": 0,
+                "initFov": 90,
+                "posX": +positionArr[i][1],
+                "posY": +positionArr[i][0],
+                "posZ": +positionArr[i][2],
+                "isLittlePlanetEffect": false
+            });
+        }
+
+        scene = InitStreetsapePlayer(params);
+    }
+
+    //处理数字改为字符串
+    function toFourNum(num) {
+
+        let str = num.toString();
+
+        while (str.length < 4) {
+            str = "0" + str;
+        }
+
+        return str;
+    }
+</script>
+
+</html>

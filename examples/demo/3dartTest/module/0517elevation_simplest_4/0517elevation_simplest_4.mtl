@@ -1,0 +1,105 @@
+#
+## Alias OBJ Material File
+# Exported from SketchUp, (c) 2000-2012 Trimble Navigation Limited
+
+newmtl Concrete_Aggregate_Smoke_bump1
+Ka 0.000000 0.000000 0.000000
+Kd 0.286275 0.282353 0.278431
+Ks 0.330000 0.330000 0.330000
+map_Kd 0517elevation_simplest_4/Concrete_Aggregate_Smoke_bump1.jpg
+
+newmtl ForegroundColor
+Ka 0.000000 0.000000 0.000000
+Kd 0.000000 0.000000 0.000000
+Ks 0.330000 0.330000 0.330000
+
+newmtl DimGray
+Ka 0.000000 0.000000 0.000000
+Kd 0.149020 0.149020 0.149020
+Ks 0.330000 0.330000 0.330000
+
+newmtl BackColor
+Ka 0.000000 0.000000 0.000000
+Kd 0.643137 0.698039 0.733333
+Ks 0.330000 0.330000 0.330000
+
+newmtl _Translucent_Glass_Safety_1
+Ka 0.000000 0.000000 0.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.330000 0.330000 0.330000
+d 0.470000
+map_Kd 0517elevation_simplest_4/_Translucent_Glass_Safety_1.jpg
+
+newmtl _Polished_Concrete_New_1
+Ka 0.000000 0.000000 0.000000
+Kd 0.784314 0.784314 0.796078
+Ks 0.330000 0.330000 0.330000
+map_Kd 0517elevation_simplest_4/_Polished_Concrete_New_1.jpg
+
+newmtl _Concrete_Form_4x8_2
+Ka 0.000000 0.000000 0.000000
+Kd 0.654902 0.666667 0.658824
+Ks 0.330000 0.330000 0.330000
+map_Kd 0517elevation_simplest_4/_Concrete_Form_4x8_2.jpg
+
+newmtl FrontColor
+Ka 0.000000 0.000000 0.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.330000 0.330000 0.330000
+
+newmtl _DarkGray_
+Ka 0.000000 0.000000 0.000000
+Kd 0.517647 0.517647 0.517647
+Ks 0.330000 0.330000 0.330000
+
+newmtl gold_1
+Ka 0.000000 0.000000 0.000000
+Kd 0.921569 0.592157 0.454902
+Ks 0.330000 0.330000 0.330000
+
+newmtl Concrete_Form_4x8
+Ka 0.000000 0.000000 0.000000
+Kd 0.862745 0.870588 0.866667
+Ks 0.330000 0.330000 0.330000
+map_Kd 0517elevation_simplest_4/Concrete_Form_4x8.jpg
+
+newmtl Polished_Concrete_New
+Ka 0.000000 0.000000 0.000000
+Kd 0.917647 0.917647 0.921569
+Ks 0.330000 0.330000 0.330000
+
+newmtl yinying
+Ka 0.000000 0.000000 0.000000
+Kd 0.960784 0.960784 0.960784
+Ks 0.330000 0.330000 0.330000
+
+newmtl daoying02
+Ka 0.000000 0.000000 0.000000
+Kd 0.788235 0.796078 0.792157
+Ks 0.330000 0.330000 0.330000
+d 0.150000
+map_Kd 0517elevation_simplest_4/daoying02.png
+
+newmtl entrance
+Ka 0.000000 0.000000 0.000000
+Kd 0.941176 0.698039 0.596078
+Ks 0.330000 0.330000 0.330000
+map_Kd 0517elevation_simplest_4/entrance.jpg
+
+newmtl _Burnt_Umber_3
+Ka 0.000000 0.000000 0.000000
+Kd 0.168627 0.168627 0.168627
+Ks 0.330000 0.330000 0.330000
+
+newmtl gold_2
+Ka 0.000000 0.000000 0.000000
+Kd 0.933333 0.650980 0.533333
+Ks 0.330000 0.330000 0.330000
+map_Kd 0517elevation_simplest_4/gold_2.jpg
+
+newmtl Cladding_Stucco_White
+Ka 0.000000 0.000000 0.000000
+Kd 0.933333 0.650980 0.533333
+Ks 0.330000 0.330000 0.330000
+map_Kd 0517elevation_simplest_4/Cladding_Stucco_White.jpg
+

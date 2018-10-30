@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Threejs使用高光贴图</title>
+    <style type="text/css">
+        html, body {
+            margin: 0;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body onload="draw();">
+</body>
+<script src="https://cdn.bootcss.com/three.js/91/three.min.js"></script>
+<script src="/lib/js/controls/OrbitControls.js"></script>
+<script src="/lib/js/libs/stats.min.js"></script>
+<script src="https://cdn.bootcss.com/dat-gui/0.7.1/dat.gui.min.js"></script>
+<script src="/lib/js/Detector.js"></script>
+
+<script>
+    var renderer, camera, scene, gui, light, stats, controls;
+
+    function initRender() {
+        renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0xeeeeee);
+        renderer.shadowMap.enabled = true;
+        //告诉渲染器需要阴影效果
+        document.body.appendChild(renderer.domElement);
+    }
+
+    function initCamera() {
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 15 );
+
+        //CubeCamera（near：Number，far：Number，cubeResolution：Number）
+        //近 - 近裁剪距离。
+        //远 - 裁剪距离
+        //cubeResolution - 设置立方体边缘的长度。
+
+        //可以通过renderTarget对象获取生成的立方体纹理。
+
+        //创建一个获取环境贴图的cubeCamera
+        cubeCamera = new THREE.CubeCamera(0.1, 1000, 256);
+        scene.add(cubeCamera);
+    }
+
+    function initScene() {
+        //给场景添加天空盒子纹理
+        var cubeTextureLoader = new THREE.CubeTextureLoader();
+        cubeTextureLoader.setPath( '/lib/textures/cube/space/' );
+        //六张图片分别是朝前的（posz）、朝后的（negz）、朝上的（posy）、朝下的（negy）、朝右的（posx）和朝左的（negx）。
+        var cubeTexture = cubeTextureLoader.load( [
+            'right.jpg', 'left.jpg',
+            'top.jpg', 'bottom.jpg',
+            'front.jpg', 'back.jpg'
+        ] );
+
+        scene = new THREE.Scene();
+
+        scene.background = cubeTexture;
+    }
+
+    //初始化dat.GUI简化试验流程
+    function initGui() {
+        //声明一个保存需求修改的相关数据的对象
+        gui = {
+            offsetX: 0,
+            offsetY: 0,
+            repeatX: 1,
+            repeatY: 1,
+            rotation: 0,
+            centerX: 0.5,
+            centerY: 0.5,
+            RepeatWrapping:true
+        };
+        var datGui = new dat.GUI();
+        //将设置属性添加到gui当中，gui.add(对象，属性，最小值，最大值）
+        datGui.add(gui, "offsetX", 0.0, 1.0 ).onChange(updateUV);
+        datGui.add(gui, "offsetY", 0.0, 1.0).onChange(updateUV);
+        datGui.add(gui, "repeatX", 0.25, 2.0).onChange(updateUV);
+        datGui.add(gui, "repeatY", 0.25, 2.0).onChange(updateUV);
+        datGui.add(gui, "rotation", - 2.0, 2.0).onChange(updateUV);
+        datGui.add(gui, "centerX", 0.0, 1.0).onChange(updateUV);
+        datGui.add(gui, "centerY", 0.0, 1.0).onChange(updateUV);
+        datGui.add(gui, "RepeatWrapping").onChange(function (e) {
+            if(e){
+                material.map.wrapS = material.map.wrapT = THREE.RepeatWrapping; //设置为可循环
+            }
+            else{
+                material.map.wrapS = material.map.wrapT = THREE.ClampToEdgeWrapping; //设置会默认的最后一像素伸展
+            }
+
+            material.map.needsUpdate = true;
+        });
+    }
+
+    function initLight() {
+        scene.add(new THREE.AmbientLight(0x444444));
+
+        light = new THREE.DirectionalLight(0xffffff);
+        light.position.set(0, 20, 20 );
+
+        light.castShadow = true;
+        light.shadow.camera.top = 10;
+        light.shadow.camera.bottom = -10;
+        light.shadow.camera.left = -10;
+        light.shadow.camera.right = 10;
+
+        //告诉平行光需要开启阴影投射
+        light.castShadow = true;
+
+        scene.add(light);
+    }
+
+    function initModel() {
+
+        //辅助工具
+        var helper = new THREE.AxesHelper(50);
+        scene.add(helper);
+
+        //添加立方体
+        var geometry = new THREE.BoxGeometry( 5, 5, 5 );
+
+        var loader = new THREE.TextureLoader();
+        var texture = loader.load( '/lib/textures/UV_Grid_Sm.jpg', render );
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.matrixAutoUpdate = false; // 设置纹理属性matrixAutoUpdate为false以后，纹理将通过matrix属性设置的矩阵更新纹理显示
+        material = new THREE.MeshBasicMaterial( { map: texture } );
+
+        scene.add(new THREE.Mesh(geometry, material));
+    }
+
+    //更新纹理贴图的方法
+    function updateUV() {
+        // 一种方法，直接全写在一个方法内
+        //texture.matrix.setUvTransform( API.offsetX, API.offsetY, API.repeatX, API.repeatY, API.rotation, API.centerX, API.centerY );
+
+        // 另一种方法，分开写
+        material.map.matrix
+            .identity() //矩阵重置
+            .translate( - gui.centerX, - gui.centerY ) //设置中心点
+            .rotate( gui.rotation ) // 旋转
+            .scale( gui.repeatX, gui.repeatY ) //缩放
+            .translate( gui.centerX, gui.centerY ) //设置中心点
+            .translate( gui.offsetX, gui.offsetY ); //偏移
+    }
+
+    //初始化性能插件
+    function initStats() {
+        stats = new Stats();
+        document.body.appendChild(stats.dom);
+    }
+
+    function initControls() {
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        //设置控制器的中心点
+        //controls.target.set( 0, 5, 0 );
+        // 如果使用animate方法时，将此函数删除
+        //controls.addEventListener( 'change', render );
+        // 使动画循环使用时阻尼或自转 意思是否有惯性
+        controls.enableDamping = true;
+        //动态阻尼系数 就是鼠标拖拽旋转灵敏度
+        //controls.dampingFactor = 0.25;
+        //是否可以缩放
+        controls.enableZoom = true;
+        //是否自动旋转
+        controls.autoRotate = false;
+        controls.autoRotateSpeed = 0.5;
+        //设置相机距离原点的最远距离
+        controls.minDistance = 1;
+        //设置相机距离原点的最远距离
+        controls.maxDistance = 2000;
+        //是否开启右键拖拽
+        controls.enablePan = true;
+    }
+
+    function render() {
+    }
+
+    //窗口变动触发的函数
+    function onWindowResize() {
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+    }
+
+    function animate() {
+        //更新控制器
+        render();
+
+        //更新性能插件
+        stats.update();
+
+        controls.update();
+
+        renderer.render(scene, camera);
+
+        requestAnimationFrame(animate);
+    }
+
+    function draw() {
+        //兼容性判断
+        if (!Detector.webgl) Detector.addGetWebGLMessage();
+
+        initGui();
+        initRender();
+        initScene();
+        initCamera();
+        initLight();
+        initModel();
+        initControls();
+        initStats();
+
+        animate();
+        window.onresize = onWindowResize;
+    }
+
+
+</script>
+</html>

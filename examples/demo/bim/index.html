@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>ajax数据传输案例</title>
+</head>
+<body>
+
+</body>
+<script src="js/mybim.js"></script>
+<script src="js/dat.gui.min.js"></script>
+<script>
+
+    var params = {
+        camera:{
+            position:{
+                x:0,
+                y:1000,
+                z:1000
+            }
+        },
+        bg:{
+            bgColor:"#cccccc", //背景颜色
+            panorama:[
+                'images/island/right.jpg',
+                'images/island/left.jpg',
+                'images/island/top.jpg',
+                'images/island/bottom.jpg',
+                'images/island/front.jpg',
+                'images/island/back.jpg'
+            ]
+        },
+        callback:{
+            modelLoadedCallBack:function(){
+                console.log("加载完成");
+            }, //模型加载完成回调
+            modelLoadProgressCallBack:function(loaded, all){
+                console.log(loaded, all);
+            }, //模型加载进度回调
+            loadedCallBack:function(){
+                console.log('加载完成!');
+            }, //场景加载完成后的回调-只针对于一个材质纹理相关，无法获取模型加载
+            loadProgressCallBack:function(url, itemsLoaded, itemsTotal){
+                console.log('下载的文件: ' + url + '.\n已完成' + itemsLoaded + ' 总共 ' + itemsTotal + ' 个文件');
+            }, //场景加载进度回调-只针对于一个材质纹理相关，无法获取模型加载进度
+            clickCallback:function(){}, //点击后的回调
+            doubleClickCallback:function(){}, //双击后的回调
+            selectCallback:function(){}, //框选后的回调
+        }
+    };
+
+    //第一步实例化场景
+    var scene = new MYBIM(params);
+
+    scene.init(); //初始化场景
+    scene.addHelper(); //添加辅助线
+    scene.addLight(); //设置灯光
+    console.warn = function () {};
+
+    //通过模型id加载模型数据
+    scene.loadModelList("4dfc5d79-83ac-45f5-8f00-ded13526f1db");
+
+    /*scene.modelLoadedCallBack = function () {
+        console.log("加载完成");
+    };
+
+    scene.modelLoadProgressCallBack = function (loaded, all) {
+        console.log(loaded, all);
+    };*/
+
+    var arr = [
+        "0d7d3137-d071-4e0c-b886-4c4d8392d172",
+        "658316ae-956f-4c2c-b0a4-9a42bbb3d811",
+        "dadd7412-19a0-4d3e-96d1-46997a644cfd",
+        "099e830d-7b42-433a-8b31-aa184f354653",
+        "4dfc5d79-83ac-45f5-8f00-ded13526f1db"
+    ];
+
+    /*var index = 0;
+    setInterval(function () {
+        index++;
+        if (index > 3) index = 0;
+        loader.loadModelList(arr[index]);
+    }, 60000);*/
+
+    //添加点击回调,如果点击到模型，将会触发回调，返回一个数组
+    /*scene.clickCallback = function (data) {
+        console.log("点中的构件的id是"+data);
+
+        //设置当前的模型是否处于焦点状态
+        //scene.setFocus(data[0]);
+
+        //设置当前模型的材质数据
+        scene.setMaterial(data[0], {"type":"phong","color":65535,"map":"/images/planets/earth_atmos_2048.jpg","lightMap":"/images/planets/earth_lights_2048.png","specularMap":"/images/planets/earth_specular_2048.jpg","specular":"#00ff00"});
+        /!*scene.setMaterial(data[0],  {"type":"phong","color":"#ffff00","map":"http://139.196.104.14:8089/4/f/011c844bd2b045a5a29da3a7b4f9a0fd.jpg","bumpMap":"http://139.196.104.14:8089/9/8/2da4bcb2916944e9a6749c77080b3089.jpg","specularMap":null,"lightMapIntensity":500,"lightMap":null,"emissive":"#8080ff","emissiveMap":null,"opacity":500,"alphaMap":null,"aoMapIntensity":500,"aoMap":null}
+        )*!/
+
+        //scene.setShowById(data[0], false);
+    };
+
+    scene.selectCallback = function (data) {
+        console.log("框选中的数组是", data);
+    }
+
+    setTimeout(function () {
+        console.log("设置焦点");
+        scene.setShowById("edd451ad-73eb-4399-9552-99695876b58d-0019a8dc", false);
+    }, 8000);*/
+
+    /*scene.clickCallback = function (data){
+        scene.removeMaterial(data[0]);
+    }*/
+
+    var settings = {
+        control:"点选模式",
+        clipping:false,
+        boom:false,
+        boomPercent:1.5,
+        reset:function () {
+            scene.resetPosition();
+        }
+    };
+
+    var gui = new dat.GUI();
+    gui.add(settings, "control", ["点选模式", "平移模式", "旋转模式", "第一人称模式", "全景模式"]).name("切换操作").onChange(function () {
+        switch (settings.control) {
+            case "点选模式":
+                scene.setControls("normal");
+                break;
+            case "旋转模式":
+                scene.setControls("translation");
+                break;
+            case "平移模式":
+                scene.setControls("rotation");
+                break;
+            case "第一人称模式":
+                scene.setControls("firstPerson");
+                break;
+            case "全景模式":
+                scene.setControls("panorama");
+                break;
+        }
+    });
+
+    gui.add(settings, "reset").name("重置视角");
+
+    gui.add(settings, "clipping").name("刨切").onChange(function (event) {
+        if(event){
+            scene.boxClipping();
+        }
+        else{
+            scene.disposeClipping();
+        }
+    });
+
+    gui.add(settings, "boom").name("爆炸视角").onChange(function (event) {
+        if(event){
+            scene.openBoom();
+        }
+        else{
+            scene.closeBoom();
+        }
+    });
+
+    gui.add(settings, "boomPercent", 1, 3).onChange(function (event) {
+        scene.setBoomPercent(event);
+    });
+
+</script>
+</html>

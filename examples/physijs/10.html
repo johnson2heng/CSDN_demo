@@ -1,0 +1,381 @@
+
+<!DOCTYPE html>
+<html lang="zn">
+<head>
+    <meta charset="UTF-8">
+    <title>Physijs物理引擎-DOFConstraint约束</title>
+    <style type="text/css">
+        html, body {
+            margin: 0;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body onload="draw();">
+</body>
+<script src="https://cdn.bootcss.com/three.js/92/three.min.js"></script>
+<script src="/lib/libs/physi.js"></script>
+<script src="/lib/js/controls/OrbitControls.js"></script>
+<script src="/lib/js/libs/stats.min.js"></script>
+<script src="https://cdn.bootcss.com/dat-gui/0.7.1/dat.gui.min.js"></script>
+<script src="/lib/js/Detector.js"></script>
+
+<script>
+    var renderer, camera, scene, gui, light, stats, controls;
+    var vehicle, input, carBody, cameraWrap = new THREE.Object3D();
+    var clock = new THREE.Clock();
+    Physijs.scripts.worker = '/lib/libs/physijs_worker.js';
+    Physijs.scripts.ammo = '/lib/libs/ammo.js';
+
+    function initRender() {
+        renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0xeeeeee);
+        renderer.shadowMap.enabled = true;
+        //告诉渲染器需要阴影效果
+        document.body.appendChild(renderer.domElement);
+    }
+
+    function initCamera() {
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 20000);
+        camera.position.set(0, 10, -40);
+        cameraWrap.add(camera);
+
+        scene.add(cameraWrap);
+    }
+
+    function initScene() {
+        scene = new Physijs.Scene();
+        scene.background = new THREE.Color(0xa0a0a0);
+        //scene.fog = new THREE.Fog(0xa0a0a0, 90, 150);
+
+        //设置重力
+        scene.setGravity(new THREE.Vector3(0, -30, 0));
+        scene.addEventListener(
+            'update',
+            function () {
+
+                if (input && vehicle) {
+                    if (input.direction !== null) {
+                        input.steering += input.direction / 50;
+                        if (input.steering < -.6) input.steering = -.6;
+                        if (input.steering > .6) input.steering = .6;
+
+                        if(input.direction === 0){
+                            if(input.steering < 0){
+                                input.steering += 0.02;
+                            }
+                            else{
+                                input.steering -= 0.02;
+                            }
+
+                            if(Math.abs(input.steering) <= 0.02){
+                                input.steering = 0;
+                            }
+                        }
+                    }
+                    vehicle.setSteering(input.steering, 0);
+                    vehicle.setSteering(input.steering, 1);
+
+                    if (input.power === true) {
+                        vehicle.applyEngineForce(300); //设置马力
+                    }
+                    else if (input.power === false) {
+                        vehicle.applyEngineForce(-100); //设置倒车
+                    }
+                    else {
+                        vehicle.applyEngineForce(0);
+                        vehicle.setBrake(10, 2);
+                        vehicle.setBrake(10, 3);
+                    }
+
+                    //重新设置位置
+                    cameraWrap.position.set(carBody.position.x, carBody.position.y, carBody.position.z);
+                }
+
+            }
+        );
+    }
+
+    //初始化dat.GUI简化试验流程
+    function initGui() {
+        //声明一个保存需求修改的相关数据的对象
+        gui = {};
+        var datGui = new dat.GUI();
+        //将设置属性添加到gui当中，gui.add(对象，属性，最小值，最大值）
+    }
+
+    function initLight() {
+        scene.add(new THREE.AmbientLight(0x444444));
+
+        light = new THREE.DirectionalLight(0xffffff);
+        light.position.set(0, 20, 10);
+
+        light.castShadow = true;
+        light.shadow.camera.top = 300;
+        light.shadow.camera.bottom = -300;
+        light.shadow.camera.left = -300;
+        light.shadow.camera.right = 300;
+
+
+        light.shadow.mapSize.width = 2048;
+        light.shadow.mapSize.height = 2048;
+
+        //light.shadow.radius = 0.01;
+
+        //告诉平行光需要开启阴影投射
+        light.castShadow = true;
+
+        scene.add(light);
+    }
+
+    function initModel() {
+
+        //辅助工具
+        var helper = new THREE.AxesHelper(50);
+        //scene.add(helper);
+
+        // 地板
+        var mesh = new Physijs.BoxMesh(new THREE.BoxGeometry(2000, 2000, 0.2), Physijs.createMaterial(new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            depthWrite: false
+        })), 0);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+
+        //添加地板割线
+        var grid = new THREE.GridHelper(2000, 500, 0x000000, 0x000000);
+        grid.material.opacity = 0.2;
+        grid.material.transparent = true;
+        scene.add(grid);
+
+        // 添加小汽车
+        var json_loader = new THREE.JSONLoader();
+
+        json_loader.load("/lib/models/json/mustang.js", function (car, car_materials) {
+            json_loader.load("/lib/models/json/mustang_wheel.js", function (wheel, wheel_materials) {
+                var mesh = new Physijs.BoxMesh(
+                    car,
+                    new THREE.MeshFaceMaterial(car_materials)
+                );
+                mesh.position.y = 2;
+                mesh.castShadow = mesh.receiveShadow = true;
+                carBody = mesh;
+
+                vehicle = new Physijs.Vehicle(mesh, new Physijs.VehicleTuning(
+                    20.88, //悬架刚度
+                    1.83, //悬架压缩度
+                    0.28, //悬架减弱度
+                    100, //最大动力
+                    10.5, //怠速滑行减弱
+                    6000 //最大悬挂力
+                ));
+                scene.add(vehicle);
+
+                var wheel_material = new THREE.MeshFaceMaterial(wheel_materials);
+
+                for (var i = 0; i < 4; i++) {
+                    vehicle.addWheel(
+                        wheel, //轮胎几何体
+                        wheel_material, //轮胎材质
+                        new THREE.Vector3(
+                            i % 2 === 0 ? -1.6 : 1.6,
+                            -1,
+                            i < 2 ? 3.3 : -3.2
+                        ), //轮胎连接点
+                        new THREE.Vector3(0, -1, 0), //轮胎朝向
+                        new THREE.Vector3(-1, 0, 0), //轮轴转向
+                        0.4, //汽车悬架高度
+                        0.7, //车轮半径
+                        i < 2 ? false : true //是否是前转向轮
+                    );
+                }
+
+                input = {
+                    power: null,
+                    direction: null,
+                    steering: 0
+                };
+                document.addEventListener('keydown', function (ev) {
+                    switch (ev.keyCode) {
+                        case 65: // left
+                            input.direction = 1;
+                            break;
+
+                        case 68: // right
+                            input.direction = -1;
+                            break;
+
+                        case 87: // forward
+                            input.power = true;
+                            break;
+
+                        case 83: // back
+                            input.power = false;
+                            break;
+                    }
+                });
+                document.addEventListener('keyup', function (ev) {
+                    switch (ev.keyCode) {
+                        case 65: // left
+                            input.direction = 0;
+                            break;
+
+                        case 68: // right
+                            input.direction = 0;
+                            break;
+
+                        case 87: // forward
+                            input.power = null;
+                            break;
+
+                        case 83: // back
+                            input.power = null;
+                            break;
+                    }
+                });
+            });
+        });
+
+        //添加柱子
+        var cubeGeo = new THREE.BoxGeometry(10, 100, 10);
+
+        for(var i=0; i<10; i++){
+            for(var j=0; j<10; j++){
+                var cubeMaterial = Physijs.createMaterial(new THREE.MeshPhongMaterial({color: randomColor()}));
+                var box = new Physijs.BoxMesh(cubeGeo, cubeMaterial, 0);
+
+                box.position.x = 100*i - 500;
+                box.position.z = 100*j - 500;
+                box.position.y = 50;
+
+                if(box.position.x === 0 || box.position.z === 0){
+
+                }
+                else{
+                    scene.add(box);
+                }
+            }
+        }
+
+        //添加一个可以飞跃的立方体
+        var geo = new THREE.BoxGeometry(100, 100, 100);
+        var material = Physijs.createMaterial(new THREE.MeshPhongMaterial({color: randomColor()}));
+        var cube = new Physijs.BoxMesh(geo, material, 0);
+
+        cube.position.set(0, -45, 200);
+        cube.rotation.x = -Math.PI/8;
+
+        scene.add(cube);
+
+        //放一堆立方体
+        var boxGeo = new THREE.BoxGeometry(2, 2, 2);
+        for(var i=0; i<6; i++){
+            for(var j=0; j<6; j++){
+                var cubeMaterial = Physijs.createMaterial(new THREE.MeshPhongMaterial({color: randomColor()}));
+                var box = new Physijs.BoxMesh(boxGeo, cubeMaterial);
+
+                box.position.x = 2*i - 6;
+                box.position.z = 350;
+                box.position.y = 2*j + 1;
+
+                scene.add(box);
+            }
+        }
+
+    }
+
+    function randomColor() {
+        var arr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "A", "B", "C", "D", "E", "F"];
+        var str = "#";
+        for (var i = 0; i < 6; i++) {
+            str += arr[Math.floor(Math.random() * 16)];
+        }
+
+        return str;
+    }
+
+    //初始化性能插件
+    function initStats() {
+        stats = new Stats();
+        document.body.appendChild(stats.dom);
+    }
+
+    function initControls() {
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        //设置控制器的中心点
+        //controls.target.set( 0, 100, 0 );
+        // 如果使用animate方法时，将此函数删除
+        //controls.addEventListener( 'change', render );
+        // 使动画循环使用时阻尼或自转 意思是否有惯性
+        controls.enableDamping = true;
+        //动态阻尼系数 就是鼠标拖拽旋转灵敏度
+        //controls.dampingFactor = 0.25;
+        //是否可以缩放
+        controls.enableZoom = true;
+        //是否自动旋转
+        controls.autoRotate = false;
+        controls.autoRotateSpeed = 0.5;
+        //设置相机距离原点的最远距离
+        controls.minDistance = 1;
+        //设置相机距离原点的最远距离
+        controls.maxDistance = 2000;
+        //是否开启右键拖拽
+        controls.enablePan = true;
+    }
+
+    function render() {
+        scene.simulate(clock.getDelta(), 2);
+
+        controls.update();
+    }
+
+    //窗口变动触发的函数
+    function onWindowResize() {
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+    }
+
+    function animate() {
+        //更新控制器
+        render();
+
+        //更新性能插件
+        stats.update();
+
+        renderer.render(scene, camera);
+
+        requestAnimationFrame(animate);
+    }
+
+    function draw() {
+        //兼容性判断
+        if (!Detector.webgl) Detector.addGetWebGLMessage();
+
+        initGui();
+        initRender();
+        initScene();
+        initCamera();
+        initLight();
+        initModel();
+        initControls();
+        initStats();
+
+        animate();
+        window.onresize = onWindowResize;
+    }
+
+
+</script>
+</html>

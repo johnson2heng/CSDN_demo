@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body {
+            margin: 0;
+            text-align: center;
+        }
+
+        #canvas {
+            margin: 0;
+        }
+    </style>
+</head>
+<body onload="main()">
+<canvas id="canvas" height="800" width="800">
+    你的浏览器不支持WebGL，请更换新的浏览器
+</canvas>
+</body>
+<script src="/lib/webgl-utils.js"></script>
+<script src="/lib/webgl-debug.js"></script>
+<script src="/lib/cuon-utils.js"></script>
+<script src="/lib/cuon-matrix.js"></script><!--新引入了矩阵的库文件，如果没有去看我更新的第三节-->
+<script>
+    //顶点着色器
+    var VSHADER_SOURCE = "" +
+        "attribute vec4 a_Position;\n" +
+        "uniform mat4 u_ModelMatrix;\n" +
+        "void main(){" +
+        "   gl_Position = u_ModelMatrix * a_Position;\n" +
+        "}\n";
+
+    //片元着色器
+    var FSHADER_SOURCE = "" +
+        "void main(){" +
+        "   gl_FragColor = vec4(0.0,1.0,.0,1.0);\n" +
+        "}\n";
+
+    //加载完成调用的方法
+    function main() {
+        var canvas = document.getElementById("canvas");
+        var gl = getWebGLContext(canvas);
+        if(!gl){
+            console.log("电脑不支持WebGL");
+            return;
+        }
+        if(!initShaders(gl,VSHADER_SOURCE,FSHADER_SOURCE)){
+            console.log("初始化着色器失败");
+            return;
+        }
+
+        var n = initVertexBuffers(gl);
+
+        //新增，创建Matriix对象进行模型变换
+        var modelMatrix = new Matrix4();
+
+        //计算模型矩阵
+        var angle = 30.0;//声明旋转的角度
+        var Tx = 0.5,Ty = 0.5,Tz=0.0;//声明平移的距离
+        modelMatrix.setRotate(angle,0,0,1);//设置模型矩阵为旋转矩阵
+        modelMatrix.translate(Tx,Ty,Tz);//将模型矩阵乘以平移矩阵
+
+        //获取矩阵的存储位置
+        var u_ModelMatrix = gl.getUniformLocation(gl.program,"u_ModelMatrix");
+        if(u_ModelMatrix < 0){
+            console.log("无法获取到矩阵的存储位置");
+            return;
+        }
+
+        //将矩阵模型数据传递给存储位置
+        gl.uniformMatrix4fv(u_ModelMatrix,false,modelMatrix.elements);
+
+        gl.clearColor(0.0,0.0,1.0,1.0);
+
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.drawArrays(gl.TRIANGLES,0,n);
+
+    }
+
+    //使用缓冲区
+    function initVertexBuffers(gl) {
+        var vertices = new Float32Array([0.0,0.5,-0.5,-0.5,0.5,-0.5]);
+        var n = 3;
+
+        var vertexBuffer = gl.createBuffer();
+        if(!vertexBuffer){
+            console.log("无法创建缓冲区");
+            return -1;
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW);
+
+        var a_Position = gl.getAttribLocation(gl.program,"a_Position");
+        if(a_Position < 0){
+            console.log("无法获取到变量的存储位置");
+            return;
+        }
+
+        gl.vertexAttribPointer(a_Position,2,gl.FLOAT,false,0,0);
+        gl.enableVertexAttribArray(a_Position);
+        return n;
+
+    }
+</script>
+</html>

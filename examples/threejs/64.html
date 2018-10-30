@@ -1,0 +1,244 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style type="text/css">
+        html, body {
+            margin: 0;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+
+    </style>
+</head>
+<body onload="draw();">
+</body>
+<script src="/lib/three.js"></script>
+<script src="/lib/js/utils/SceneUtils.js"></script>
+<script src="/lib/js/libs/stats.min.js"></script>
+<script src="/lib/js/libs/dat.gui.min.js"></script>
+<script>
+    var renderer;
+
+    function initRender() {
+        renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setClearColor(new THREE.Color(0x000000)); //设置背景颜色
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+    }
+
+    var camera;
+
+    function initCamera() {
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.x = -25;
+        camera.position.y = 40;
+        camera.position.z = 50;
+        camera.lookAt(new THREE.Vector3(-25, 0, 0));
+    }
+
+    var scene;
+
+    function initScene() {
+        scene = new THREE.Scene();
+    }
+
+    var light;
+
+    function initLight() {
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        light = new THREE.DirectionalLight(0xffffff);
+        light.position.set(1, 1, 1);
+        scene.add(light);
+    }
+
+
+    function initModel() {
+
+        //轴辅助 （每一个轴的长度）
+        var object = new THREE.AxesHelper(500);
+        //scene.add(object);
+    }
+
+    //初始化性能插件
+    var stats;
+
+    function initStats() {
+        stats = new Stats();
+        document.body.appendChild(stats.dom);
+    }
+
+    //生成gui设置配置项
+    var controls,knot,loadedMesh;
+    function initGui() {
+        //声明一个保存需求修改的相关数据的对象
+        controls = {
+            "radius": 13,
+            "tube": 1.7,
+            "radialSegments": 156,
+            "tubularSegments": 12,
+            "p": 3,
+            "q": 4,
+            "heightScale": 3.5,
+            "rotate": false,
+            redraw: function () {
+                // 删除掉原有的模型
+                if (knot) scene.remove(knot);
+                // 创建一个环形结构
+                ///<param name ="radius" type="float">环形结半径</param>
+                ///<param name ="tube" type="float">环形结弯管半径</param>
+                ///<param name ="radialSegments" type="int">环形结圆周上细分线段数</param>
+                ///<param name ="tubularSegments" type="int">环形结弯管圆周上的细分线段数</param>
+                ///<param name ="p" type="float">p\Q:对knot(节)状方式有效,控制曲线路径缠绕的圈数,P决定垂直方向的参数.</param>
+                ///<param name ="q" type="float">p\Q:对knot(节)状方式有效,控制曲线路径缠绕的圈数,Q决定水平方向的参数.</param>
+                ///<param name ="heightScale" type="float">环形结高方向上的缩放.默认值是1</param>
+                var geom = new THREE.TorusKnotGeometry(controls.radius, controls.tube, Math.round(controls.radialSegments), Math.round(controls.tubularSegments), Math.round(controls.p), Math.round(controls.q), controls.heightScale);
+
+                //判断绘制的模型
+                knot = createMesh(geom);
+
+                // 将新创建的模型添加进去
+                scene.add(knot);
+            },
+            save:function () {
+                console.log(knot);
+                var result = knot.toJSON();
+                localStorage.setItem("json", JSON.stringify(result));
+            },
+            load:function () {
+
+                scene.remove(loadedMesh);
+
+                var json = localStorage.getItem("json");
+
+                if (json) {
+                    var loadedGeometry = JSON.parse(json);
+                    var loader = new THREE.ObjectLoader();
+
+                    loadedMesh = loader.parse(loadedGeometry);
+                    loadedMesh.position.x -= 50;
+                    scene.add(loadedMesh);
+                    console.log(loadedMesh);
+                }
+            }
+        };
+        var gui = new dat.GUI();
+        //将设置属性添加到gui当中，gui.add(对象，属性，最小值，最大值）gui.add(controls, 'size', 0, 10).onChange(controls.redraw);
+        var loadFolder = gui.addFolder("保存/加载");
+        loadFolder.add(controls, "save");
+        loadFolder.add(controls, "load");
+
+        var meshFolder = gui.addFolder("模型相关");
+        meshFolder.add(controls, 'radius', 0, 40).onChange(controls.redraw);
+        meshFolder.add(controls, 'tube', 0, 40).onChange(controls.redraw);
+        meshFolder.add(controls, 'radialSegments', 0, 400).step(1).onChange(controls.redraw);
+        meshFolder.add(controls, 'tubularSegments', 1, 20).step(1).onChange(controls.redraw);
+        meshFolder.add(controls, 'p', 1, 10).step(1).onChange(controls.redraw);
+        meshFolder.add(controls, 'q', 1, 15).step(1).onChange(controls.redraw);
+        meshFolder.add(controls, 'heightScale', 0, 5).onChange(controls.redraw);
+        meshFolder.add(controls, 'rotate');
+
+        controls.redraw();
+    }
+
+
+    var step = 0;
+    function render() {
+
+        if (controls.rotate) {
+            knot.rotation.y = step += 0.01;
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    // 使用canvas创建纹理
+    function generateSprite() {
+
+        var canvas = document.createElement('canvas');
+        canvas.width = 16;
+        canvas.height = 16;
+
+        var context = canvas.getContext('2d');
+        var gradient = context.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2);
+        gradient.addColorStop(0, 'rgba(255,255,255,1)');
+        gradient.addColorStop(0.2, 'rgba(0,255,255,1)');
+        gradient.addColorStop(0.4, 'rgba(0,0,64,1)');
+        gradient.addColorStop(1, 'rgba(0,0,0,1)');
+
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        var texture = new THREE.Texture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+
+    }
+
+    // 创建粒子系统
+    function createPointCloud(geom) {
+        var material = new THREE.PointCloudMaterial({
+            color: 0xffffff,
+            size: 3,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            map: generateSprite(),
+            depthTest: false
+        });
+
+        var cloud = new THREE.Points(geom, material);
+        cloud.sortParticles = true;
+        return cloud;
+    }
+
+    //创建模型
+    function createMesh(geom) {
+
+        // 创建两面都显示的纹理
+        var meshMaterial = new THREE.MeshNormalMaterial({wireframe: true});
+        meshMaterial.side = THREE.DoubleSide;
+
+        // 生成模型
+        var mesh = THREE.SceneUtils.createMultiMaterialObject(geom, [meshMaterial]);
+
+        return mesh;
+    }
+
+    //窗口变动触发的函数
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+
+        render();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+    }
+
+    function animate() {
+        render();
+
+        //更新性能插件
+        stats.update();
+        requestAnimationFrame(animate);
+    }
+
+    function draw() {
+        initRender();
+        initScene();
+        initCamera();
+        initLight();
+        initModel();
+        initStats();
+        initGui();
+
+        animate();
+        window.onresize = onWindowResize;
+    }
+</script>
+</html>

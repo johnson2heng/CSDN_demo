@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="/lib/three.js"></script>
+    <style>
+        body{margin:0;}
+        canvas{width: 100%; height:100%; display: block;}
+    </style>
+</head>
+<body>
+<script>
+    //创建场景
+    var scene = new THREE.Scene();
+    //设置相机（视野，显示口的宽高比，近裁剪面，远裁剪面）
+    var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+    //设置相机的视点
+    camera.position.set(0,0,100);
+    //设置相机的朝向
+    camera.lookAt(new THREE.Vector3(0,0,0));
+    //渲染器
+    var renderer = new THREE.WebGLRenderer();
+    //设置渲染器的高度和宽度，如果加上第三个值 false，则按场景大小显示，等比例缩放
+    renderer.setSize( window.innerWidth, window.innerHeight,false);
+    //将渲染器添加到html当中
+    document.body.appendChild( renderer.domElement );
+
+    //定义线的基本材料，我们可以使用LineBasicMaterial（实线材料）和LineDashedMaterial（虚线材料）
+    var material = new THREE.LineBasicMaterial({color:0x0000ff});
+    //设置具有几何顶点的几何（Geometry）或缓冲区几何（BufferGeometry）设置顶点位置，看名字就知道了，一个是直接将数据保存在js里面的，另一个是保存在WebGL缓冲区内的，而且肯定保存到WebGL缓冲区内的效率更高
+    var geometry = new THREE.Geometry();
+    geometry.vertices.push(new THREE.Vector3(-10,0,0));
+    geometry.vertices.push(new THREE.Vector3(0,10,0));
+    geometry.vertices.push(new THREE.Vector3(10,0,0));
+    //使用Line方法将线初始化
+    var line = new THREE.Line(geometry, material);
+    //将线添加到场景
+    scene.add(line);
+
+    //使用渲染器渲染出场景和相机
+    renderer.render(scene, camera);
+</script>
+</body>
+</html>

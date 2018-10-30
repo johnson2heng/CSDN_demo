@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body onload="main()">
+<canvas id="canvas" height="400" width="400">
+    你的浏览器不支持WebGL，请更换新的浏览器
+</canvas>
+</body>
+<script src="/lib/webgl-utils.js" ></script>
+<script src="/lib/webgl-debug.js" ></script>
+<script src="/lib/cuon-utils.js" ></script>
+<script>
+    function main() {
+        //首先获取到canvas的dom对象
+        var canvas = document.getElementById("canvas");
+
+        //获取到WebGL的上下文
+        var gl = getWebGLContext(canvas);
+
+        //不支持WebGL的浏览器将打印一个错误，并结束代码运行
+        if (!gl) {
+            console.log("浏览器不支持WebGL");
+            return;
+        }
+
+        //指定一个覆盖（清空）canvas的颜色
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+        //执行清空
+        gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+</script>
+</html>

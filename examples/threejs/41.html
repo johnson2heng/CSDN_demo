@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style type="text/css">
+        html, body {
+            margin: 0;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+
+    </style>
+</head>
+<body onload="draw();">
+
+</body>
+<script src="/lib/three.js"></script>
+<script src="/lib/js/utils/SceneUtils.js"></script>
+<script src="/lib/js/QuickHull.js"></script>
+<script src="/lib/js/geometries/ConvexGeometry.js"></script>
+<script src="/lib/js/controls/OrbitControls.js"></script>
+<script src="/lib/js/libs/stats.min.js"></script>
+<script src="/lib/js/libs/dat.gui.min.js"></script>
+<script>
+    var renderer;
+    function initRender() {
+        renderer = new THREE.WebGLRenderer({antialias:true});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+    }
+
+    var camera;
+    function initCamera() {
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 1, 10000);
+        camera.position.set(0, 0, 600);
+    }
+
+    var scene;
+    function initScene() {
+        scene = new THREE.Scene();
+    }
+
+    var light;
+    function initLight() {
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        light = new THREE.DirectionalLight(0xffffff);
+        light.position.set(1,1,1);
+        scene.add(light);
+    }
+
+    function initModel() {
+        generatePoints();
+    }
+
+    //生成模型调用的方法
+    function generatePoints() {
+        // 随机生成一组顶点
+        var points = [];
+        for (var i = 0; i < 20; i++) {
+            //xyz轴的坐标点的位置会随机生成在+-150以内
+            var randomX = -150 + Math.round(Math.random() * 300);
+            var randomY = -150 + Math.round(Math.random() * 300);
+            var randomZ = -150 + Math.round(Math.random() * 300);
+
+            //创建一个坐标点并添加到数组当中
+            points.push(new THREE.Vector3(randomX, randomY, randomZ));
+        }
+
+        //声明一个存放所有点的网格对象
+        spGroup = new THREE.Object3D();
+        //声明一个网格基础材质
+        var material = new THREE.MeshBasicMaterial({color: 0xff0000, transparent: false});
+        //遍历数组生成小球点并添加到对象当中
+        points.forEach(function (point) {
+
+            var spGeom = new THREE.SphereGeometry(2);
+            var spMesh = new THREE.Mesh(spGeom, material);
+            spMesh.position.copy(point); //将当前小球的位置设置为当前点的坐标
+            scene.add(spMesh);
+        });
+        // 将存放所有点的对象添加到场景当中
+        scene.add(spGroup);
+
+        // 使用这些点实例化一个THREE.ConvexGeometry几何体对象
+        var hullGeometry = new THREE.ConvexGeometry(points);
+        //生成模型
+        hullMesh = createMesh(hullGeometry);
+        //添加到场景
+        scene.add(hullMesh);
+    }
+
+    function createMesh(geom) {
+
+        // 实例化一个绿色的半透明的材质
+        var meshMaterial = new THREE.MeshBasicMaterial({color: 0x00ff00, transparent: true, opacity: 0.2});
+        meshMaterial.side = THREE.DoubleSide; //将材质设置成正面反面都可见
+        var wireFrameMat = new THREE.MeshBasicMaterial();
+        wireFrameMat.wireframe = true; //把材质渲染成线框
+
+        // 将两种材质都赋给几何体
+        var mesh = THREE.SceneUtils.createMultiMaterialObject(geom, [meshMaterial, wireFrameMat]);
+
+        return mesh;
+    }
+
+    //初始化性能插件
+    var stats;
+    function initStats() {
+        stats = new Stats();
+        document.body.appendChild(stats.dom);
+    }
+
+    //用户交互插件 鼠标左键按住旋转，右键按住平移，滚轮缩放
+    var controls;
+    function initControls() {
+
+        controls = new THREE.OrbitControls( camera, renderer.domElement );
+
+        // 如果使用animate方法时，将此函数删除
+        //controls.addEventListener( 'change', render );
+        // 使动画循环使用时阻尼或自转 意思是否有惯性
+        controls.enableDamping = true;
+        //动态阻尼系数 就是鼠标拖拽旋转灵敏度
+        //controls.dampingFactor = 0.25;
+        //是否可以缩放
+        controls.enableZoom = true;
+        //是否自动旋转
+        controls.autoRotate = true;
+        //设置相机距离原点的最远距离
+        controls.minDistance  = 200;
+        //设置相机距离原点的最远距离
+        controls.maxDistance  = 1600;
+        //是否开启右键拖拽
+        controls.enablePan = true;
+    }
+
+    function render() {
+        renderer.render( scene, camera );
+    }
+
+    //窗口变动触发的函数
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        render();
+        renderer.setSize( window.innerWidth, window.innerHeight );
+
+    }
+
+    function animate() {
+        //更新控制器
+        controls.update();
+        render();
+
+        //更新性能插件
+        stats.update();
+        requestAnimationFrame(animate);
+    }
+
+    function draw() {
+        initRender();
+        initScene();
+        initCamera();
+        initLight();
+        initModel();
+        initControls();
+        initStats();
+
+        animate();
+        window.onresize = onWindowResize;
+    }
+</script>
+</html>

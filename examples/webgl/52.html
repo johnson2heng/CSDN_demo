@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Title</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            margin: 0;
+            display: block;
+        }
+    </style>
+</head>
+<body onload="main()">
+<canvas id="canvas" height="800" width="800"></canvas>
+</body>
+<script>
+    function main() {
+        //设置WebGL全屏显示
+        var canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        //顶点着色器
+        var vertexShaderSource = "" +
+            "attribute vec4 a_Position;\n" +
+            "void main(){\n" +
+            "   gl_Position = a_Position;\n" +
+            "}\n";
+
+        //片元着色器
+        var fragmentShaderSource = "" +
+            "void main(){\n" +
+            "   gl_FragColor = vec4(1.0,1.0,0.0,1.0);\n" +
+            "}\n";
+
+        //获取webgl上下文
+        var gl = canvas.getContext("webgl");
+        if(!gl){
+            console.log("无法获取webgl上下文");
+            return;
+        }
+
+        //创建顶点着色器
+        var vertexShader = gl.createShader(gl.VERTEX_SHADER);
+        if(vertexShader == null){
+            console.log("无法创建顶点着色器");
+            return;
+        }
+
+        //设置顶点着色器的源代码
+        gl.shaderSource(vertexShader,vertexShaderSource);
+
+        //进行顶点着色器的源代码编译
+        gl.compileShader(vertexShader);
+
+        //检查编译状态
+        var bool = gl.getShaderParameter(vertexShader,gl.COMPILE_STATUS);
+        if(!bool){
+            console.log("顶点着色器代码编译错误");
+            return;
+        }
+
+        //创建片元着色器
+        var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+        if(fragmentShader == null){
+            console.log("创建片元着色器失败");
+            return;
+        }
+
+        //设置片元着色器的源代码
+        gl.shaderSource(fragmentShader,fragmentShaderSource);
+
+        //进行片元着色器的源代码编译
+        gl.compileShader(fragmentShader);
+
+        //检查片元着色器的编译状态
+        var fragmentBool = gl.getShaderParameter(fragmentShader,gl.COMPILE_STATUS);
+        if(!fragmentBool){
+            console.log("片元着色器编译失败");
+            return;
+        }
+
+        //创建程序对象
+        var program = gl.createProgram();
+        if(program == null){
+            console.log("创建程序对象失败");
+            return;
+        }
+
+        //为程序分配顶点着色器和片元着色器
+        gl.attachShader(program,vertexShader);
+        gl.attachShader(program,fragmentShader);
+
+        //连接程序对象
+        gl.linkProgram(program);
+
+        //判断是否连接成功
+        var programBool = gl.getProgramParameter(program,gl.LINK_STATUS);
+        if(!programBool){
+            //获取错误日志
+            console.log(gl.getProgramInfoLog(program));
+            return;
+        }
+
+        //告知webgl系统所使用的程序对象
+        gl.useProgram(program);
+
+        //声明绘制点的数据
+        var arr = new Float32Array([
+            -0.5,0.5,-0.5,-0.5,
+            0.5,0.5,0.5,-0.5
+        ]);
+
+        //创建缓冲区对象
+        var buffer = gl.createBuffer();
+        if(!buffer){
+            console.log("创建缓冲区对象失败");
+            return;
+        }
+
+        //绑定数据
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
+
+        //获取到attribute变量
+        var a_Position = gl.getAttribLocation(program,"a_Position");
+        if(a_Position < 0){
+            console.log("无法获取到attribute变量的存储位置");
+            return;
+        }
+
+        //将缓冲区数据绑定到变量上面
+        gl.vertexAttribPointer(a_Position, 2, gl.FLOAT,false, 0, 0);
+
+        gl.enableVertexAttribArray(a_Position);
+
+        //设置需要绘制的底色
+        gl.clearColor(0.0,0.0,0.0,1.0);
+
+        //清除
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        //绘制颜色
+        gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    }
+</script>
+</html>

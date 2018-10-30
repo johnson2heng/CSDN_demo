@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+
+<!--[if lt IE 7]>
+<html class="lt-ie9 lt-ie8 lt-ie7">
+<![endif]-->
+<!--[if IE 7]>
+<html class="lt-ie9 lt-ie8">
+<![endif]-->
+<!--[if IE 8]>
+<html class="lt-ie9">
+<![endif]-->
+<!--[if gt IE 8]><!-->
+<html>
+<!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="">
+        <script type="text/javascript">
+            (function(doc) {
+
+                var addEvent = 'addEventListener',
+                    type = 'gesturestart',
+                    qsa = 'querySelectorAll',
+                    scales = [.8, .8],
+                    meta = qsa in doc ? doc[qsa]('meta[name=viewport]') : [];
+
+                function fix() {
+                    meta.content = 'width=device-width,minimum-scale=' + scales[0] + ',maximum-scale=' + scales[1];
+                    doc.removeEventListener(type, fix, true);
+                }
+
+                if ((meta = meta[meta.length - 1]) && addEvent in doc) {
+                    fix();
+                    scales = [.9, .9];
+                    doc[addEvent](type, fix, true);
+                }
+            }(document));
+        </script>
+       
+        
+        <link rel="stylesheet" href="css/main.css?version=1.0">
+
+
+    </head>
+
+    <body>
+
+
+        <div class='wrapper'></div>
+
+        <script src="js/bundle.js?version=1.0"></script>     
+       
+    </body>
+    
+</html>

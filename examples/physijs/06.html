@@ -1,0 +1,277 @@
+
+<!DOCTYPE html>
+<html lang="zn">
+<head>
+    <meta charset="UTF-8">
+    <title>Physijs物理引擎-铰链约束</title>
+    <style type="text/css">
+        html, body {
+            margin: 0;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body onload="draw();">
+</body>
+<script src="https://cdn.bootcss.com/three.js/92/three.min.js"></script>
+<script src="/lib/libs/physi.js"></script>
+<script src="/lib/js/controls/OrbitControls.js"></script>
+<script src="/lib/js/libs/stats.min.js"></script>
+<script src="https://cdn.bootcss.com/dat-gui/0.7.1/dat.gui.min.js"></script>
+<script src="/lib/js/Detector.js"></script>
+
+<script>
+    var renderer, camera, scene, gui, light, stats, controls, sphere;
+    Physijs.scripts.worker = '/lib/libs/physijs_worker.js';
+    Physijs.scripts.ammo = '/lib/libs/ammo.js';
+
+    var friction = 0.5; //摩擦力
+    var restitution = 1; //反弹力
+
+    function initRender() {
+        renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0xeeeeee);
+        renderer.shadowMap.enabled = true;
+        //告诉渲染器需要阴影效果
+        document.body.appendChild(renderer.domElement);
+    }
+
+    function initCamera() {
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.set(0, 40, 75);
+    }
+
+    function initScene() {
+        scene = new Physijs.Scene();
+        scene.background = new THREE.Color(0xa0a0a0);
+        //scene.fog = new THREE.Fog(0xa0a0a0, 90, 150);
+
+        //设置重力
+        scene.setGravity(new THREE.Vector3(0, -30, 0));
+    }
+
+    //初始化dat.GUI简化试验流程
+    function initGui() {
+        //声明一个保存需求修改的相关数据的对象
+        gui = {
+            addPolyhedron:function () {
+                var material = Physijs.createMaterial(new THREE.MeshPhongMaterial({color:randomColor()}), friction, restitution);
+                var arr = ["TetrahedronGeometry", "OctahedronGeometry", "DodecahedronGeometry", "IcosahedronGeometry"]; //四面体，八面体，十二面体，二十面体
+                var geometry = new THREE[arr[Math.floor(Math.random() * 4)]]( 2 );
+
+                var mesh = new Physijs.ConvexMesh(geometry, material);
+
+                mesh.castShadow = true;
+                //mesh.rotation.x = Math.random() * Math.PI * 2;
+               // mesh.rotation.y = Math.random() * Math.PI * 2;
+                //mesh.rotation.z = Math.random() * Math.PI * 2;
+                mesh.position.x = -30 + 60 * Math.random();
+                mesh.position.z = -30 + 60 * Math.random();
+                mesh.position.y = 30;
+
+                scene.add(mesh);
+
+                var constraint = new Physijs.HingeConstraint(
+                    mesh, // 第一个被约束的对象
+                    null, // 第二个被约束的对象，可以忽略
+                    new THREE.Vector3( 0, 30, 0 ), // point in the scene to apply the constraint
+                    new THREE.Vector3( 1, 0, 0 )
+                );
+                scene.addConstraint( constraint );
+
+                /*constraint.setLimits(
+                    -2, // 最小运动角度，以弧度表示
+                    2, // 最大运动角度，以弧度表示
+                    0.1, // 设置误差范围
+                    1, // 控制极限反弹（0.0 ==不反弹）
+                );*/
+
+            },
+            addPolyhedron2:function () {
+                var material = Physijs.createMaterial(new THREE.MeshPhongMaterial({color:randomColor()}), friction, restitution);
+                var arr = ["TetrahedronGeometry", "OctahedronGeometry", "DodecahedronGeometry", "IcosahedronGeometry"]; //四面体，八面体，十二面体，二十面体
+                var geometry = new THREE[arr[Math.floor(Math.random() * 4)]]( 2 );
+
+                var x = -30 + 60 * Math.random();
+                var y = -30 + 60 * Math.random();
+
+                var mesh = new Physijs.ConvexMesh(geometry, material);
+
+                mesh.castShadow = true;
+                //mesh.rotation.x = Math.random() * Math.PI * 2;
+                //mesh.rotation.y = Math.random() * Math.PI * 2;
+                //mesh.rotation.z = Math.random() * Math.PI * 2;
+                mesh.position.x = x;
+                mesh.position.z = y;
+                mesh.position.y = 30;
+
+                scene.add(mesh);
+
+                var geometry2 = new THREE[arr[Math.floor(Math.random() * 4)]]( 2 );
+                var mesh2 = new Physijs.ConvexMesh(geometry2, material);
+
+                mesh2.castShadow = true;
+                mesh2.rotation.x = Math.random() * Math.PI * 2;
+                mesh2.rotation.y = Math.random() * Math.PI * 2;
+                mesh2.rotation.z = Math.random() * Math.PI * 2;
+                mesh2.position.x = -x;
+                mesh2.position.z = -y;
+                mesh2.position.y = 30;
+
+                scene.add(mesh2);
+
+                var constraint = new Physijs.HingeConstraint(
+                    mesh, // 第一个被约束的对象
+                    mesh2, // 第二个被约束的对象，可以忽略
+                    mesh2.position, // point in the scene to apply the constraint
+                    new THREE.Vector3( 0, 1, 0 )
+                );
+                scene.addConstraint( constraint );
+
+                constraint.setLimits(
+                    -1, // 最小运动角度，以弧度表示
+                    1, // 最大运动角度，以弧度表示
+                    0.1, // 设置误差范围
+                    0, // 控制极限反弹（0.0 ==不反弹）
+                );
+
+            }
+        };
+        var datGui = new dat.GUI();
+        //将设置属性添加到gui当中，gui.add(对象，属性，最小值，最大值）
+        datGui.add(gui,"addPolyhedron").name("单个物体被限制");
+        datGui.add(gui,"addPolyhedron2").name("两个物体被限制");
+    }
+
+    function randomColor() {
+        var arr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "A", "B", "C", "D", "E", "F"];
+        var str = "#";
+        for(var i=0; i<6; i++){
+            str += arr[Math.floor(Math.random()*16)];
+        }
+
+        return str;
+    }
+
+    function initLight() {
+        scene.add(new THREE.AmbientLight(0x444444));
+
+        light = new THREE.DirectionalLight(0xffffff);
+        light.position.set(0, 20, 10);
+
+        light.castShadow = true;
+        light.shadow.camera.top = 30;
+        light.shadow.camera.bottom = -30;
+        light.shadow.camera.left = -30;
+        light.shadow.camera.right = 30;
+
+        //告诉平行光需要开启阴影投射
+        light.castShadow = true;
+
+        scene.add(light);
+    }
+
+    function initModel() {
+
+        //辅助工具
+        var helper = new THREE.AxesHelper(50);
+        scene.add(helper);
+
+        // 地板
+        var mesh = new Physijs.BoxMesh(new THREE.BoxGeometry(200, 200, 0.2), Physijs.createMaterial(new THREE.MeshPhongMaterial({color: 0xffffff, depthWrite: false})), 0);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+
+        //添加地板割线
+        var grid = new THREE.GridHelper(200, 50, 0x000000, 0x000000);
+        grid.material.opacity = 0.2;
+        grid.material.transparent = true;
+        scene.add(grid);
+
+    }
+
+    //初始化性能插件
+    function initStats() {
+        stats = new Stats();
+        document.body.appendChild(stats.dom);
+    }
+
+    function initControls() {
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        //设置控制器的中心点
+        //controls.target.set( 0, 100, 0 );
+        // 如果使用animate方法时，将此函数删除
+        //controls.addEventListener( 'change', render );
+        // 使动画循环使用时阻尼或自转 意思是否有惯性
+        controls.enableDamping = true;
+        //动态阻尼系数 就是鼠标拖拽旋转灵敏度
+        //controls.dampingFactor = 0.25;
+        //是否可以缩放
+        controls.enableZoom = true;
+        //是否自动旋转
+        controls.autoRotate = false;
+        controls.autoRotateSpeed = 0.5;
+        //设置相机距离原点的最远距离
+        controls.minDistance = 1;
+        //设置相机距离原点的最远距离
+        controls.maxDistance = 2000;
+        //是否开启右键拖拽
+        controls.enablePan = true;
+    }
+
+    function render() {
+        scene.simulate();
+
+        controls.update();
+    }
+
+    //窗口变动触发的函数
+    function onWindowResize() {
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+    }
+
+    function animate() {
+        //更新控制器
+        render();
+
+        //更新性能插件
+        stats.update();
+
+        renderer.render(scene, camera);
+
+        requestAnimationFrame(animate);
+    }
+
+    function draw() {
+        //兼容性判断
+        if (!Detector.webgl) Detector.addGetWebGLMessage();
+
+        initGui();
+        initRender();
+        initScene();
+        initCamera();
+        initLight();
+        initModel();
+        initControls();
+        initStats();
+
+        animate();
+        window.onresize = onWindowResize;
+    }
+
+
+</script>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Title</title>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        #canvas {
+            margin: 0;
+            display: block;
+        }
+    </style>
+</head>
+<body onload="main()">
+<canvas id="canvas" height="800" width="1200"></canvas>
+</body>
+<script src="/lib/webgl-utils.js"></script>
+<script src="/lib/webgl-debug.js"></script>
+<script src="/lib/cuon-utils.js"></script>
+<script src="/lib/cuon-matrix.js"></script>
+<script>
+    //设置WebGL全屏显示
+    var canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    //顶点着色器
+    var vertexShaderSource = "" +
+        "attribute vec4 a_Position;\n" +
+        "void main(){\n" +
+        "   gl_Position = a_Position;\n" +
+        "   gl_PointSize = 300.0;\n" +
+        "}\n";
+
+    //片元着色器
+    var fragmentShaderSource = "" +
+        "#ifdef GL_ES\n" +
+        "precision mediump float;\n" +
+        "#endif\n" +
+        "void main(){\n" +//d为当前处理的片元和中心点的距离
+        "   float d = distance(gl_PointCoord, vec2(0.5,0.5));\n" +
+        "   if(d < 0.5){\n" +   //判断距离，如果小于0.5就绘制
+        "       gl_FragColor = vec4(1.0,0.0,0.0,1.0);\n" +
+        "   }else{ discard;}\n" +
+        "}\n";
+
+    function main() {
+        //获取WebGL对象
+        var gl = getWebGLContext(canvas);
+
+        //初始化着色器
+        initShaders(gl, vertexShaderSource, fragmentShaderSource);
+
+        //将数据存入缓冲区
+        var n = initVertexBuffers(gl);
+        if (n < 0) {
+            console.log("数据存入缓冲区失败");
+            return;
+        }
+
+        //设置背景色
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+        //清空背景
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.POINTS, 0, n);
+    }
+
+
+    //设置顶点数据和将数据存入缓冲区
+    function initVertexBuffers(gl) {
+        var vertices = new Float32Array([
+            0.0,0.5, -0.5,-0.5, 0.5,-0.5
+        ]);
+
+        var n = 3;
+
+        var vertexBuffer = gl.createBuffer();
+        if(!vertexBuffer){
+            console.log("无法创建缓冲区");
+            return -1;
+        }
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+        var a_Position = gl.getAttribLocation(gl.program, "a_Position");
+        if(a_Position < 0){
+            console.log("无法获取到顶点变量的存储位置");
+            return -1;
+        }
+
+        gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+        gl.enableVertexAttribArray(a_Position);
+
+        return n;
+    }
+</script>
+</html>

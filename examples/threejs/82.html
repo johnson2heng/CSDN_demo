@@ -1,0 +1,210 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style type="text/css">
+        html, body {
+            margin: 0;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+
+    </style>
+</head>
+
+<body onload="draw();">
+
+</body>
+<script src="/lib/three.js"></script>
+<script src="/lib/js/loaders/OBJLoader.js"></script>
+<script src="/lib/js/loaders/MTLLoader.js"></script>
+<script src="/lib/libs/chroma.js"></script> <!--处理颜色的库-->
+<script src="/lib/js/controls/FirstPersonControls.js"></script>
+<script src="/lib/js/libs/stats.min.js"></script>
+<script src="/lib/js/libs/dat.gui.min.js"></script>
+<script src="/lib/js/Detector.js"></script>
+
+<script>
+    var renderer;
+    function initRender() {
+        renderer = new THREE.WebGLRenderer({antialias:true});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.sortObjects = false;
+        //告诉渲染器需要阴影效果
+        document.body.appendChild(renderer.domElement);
+    }
+
+    var camera;
+    function initCamera() {
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 10000);
+        camera.position.set(0, 10, 50);
+        camera.lookAt(new THREE.Vector3(0,0,0));
+    }
+
+    var scene;
+    function initScene() {
+        scene = new THREE.Scene();
+    }
+
+    //初始化dat.GUI简化试验流程
+    var gui;
+    function initGui() {
+        //声明一个保存需求修改的相关数据的对象
+        gui = {
+        };
+        var datGui = new dat.GUI();
+        //将设置属性添加到gui当中，gui.add(对象，属性，最小值，最大值）
+    }
+
+    var light;
+    function initLight() {
+        scene.add(new THREE.AmbientLight(0x444444));
+
+        light = new THREE.PointLight(0xffffff);
+        light.position.set(0,50,0);
+
+        //告诉平行光需要开启阴影投射
+        light.castShadow = true;
+
+        scene.add(light);
+    }
+
+    function initModel() {
+
+        //辅助工具
+        var helper = new THREE.AxesHelper(50);
+        scene.add(helper);
+
+        var mtlLoader = new THREE.MTLLoader();
+        mtlLoader.setPath('/lib/assets/models/');
+        //加载mtl文件
+        mtlLoader.load('city.mtl', function (material) {
+            var objLoader = new THREE.OBJLoader();
+            //设置当前加载的纹理
+            objLoader.setMaterials(material);
+            objLoader.setPath('/lib/assets/models/');
+            objLoader.load('city.obj', function (object) {
+                //设置颜色的取值范围
+                var scale = chroma.scale(['yellow', '008ae5']);
+
+                console.log(object);
+
+                //重新设置纹理颜色
+                setRandomColors(object, scale);
+
+                //将模型缩放并添加到场景当中
+                scene.add(object);
+            })
+        });
+    }
+
+    //添加纹理的方法
+    function setRandomColors(object, scale) {
+        //获取children数组
+        var children = object.children;
+
+        //如果当前模型有子元素，则遍历子元素
+        if (children && children.length > 0) {
+            children.forEach(function (e) {
+                setRandomColors(e, scale)
+            });
+        }
+        else {
+            if (object instanceof THREE.Mesh) {
+                //如果当前的模型是楼层，则设置固定的颜色，并且透明化
+                if(Array.isArray(object.material)){
+                    for(var i = 0; i<object.material.length; i++){
+                        var material = object.material[i];
+                        var color = scale(Math.random()).hex();
+                        if (material.name.indexOf("building") === 0) {
+                            material.color = new THREE.Color(color);
+                            material.transparent = true;
+                            material.opacity = 0.7;
+                            material.depthWrite = false;
+                        }
+                    }
+                }
+                // 如果不是场景组，则给当前mesh添加纹理
+                else{
+                    //随机当前模型的颜色
+                    object.material.color = new THREE.Color(scale(Math.random()).hex());
+                }
+            }
+        }
+    }
+
+    //初始化性能插件
+    var stats;
+    function initStats() {
+        stats = new Stats();
+        document.body.appendChild(stats.dom);
+    }
+
+    var controls;
+    function initControls() {
+
+        controls = new THREE.FirstPersonControls(camera);
+        controls.lookSpeed = 0.2; //鼠标移动查看的速度
+        controls.movementSpeed = 20; //相机移动速度
+        controls.noFly = true;
+        controls.constrainVertical = true; //约束垂直
+        controls.verticalMin = 1.0;
+        controls.verticalMax = 2.0;
+        controls.lon = -100; //进入初始视角x轴的角度
+        controls.lat = 0; //初始视角进入后y轴的角度
+    }
+
+    function render() {
+
+        renderer.clear();
+        renderer.render( scene, camera );
+    }
+
+    //窗口变动触发的函数
+    function onWindowResize() {
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        render();
+        renderer.setSize( window.innerWidth, window.innerHeight );
+
+    }
+
+    var clock = new THREE.Clock();
+
+    function animate() {
+        //更新控制器
+        render();
+
+        //更新性能插件
+        stats.update();
+
+        controls.update(clock.getDelta());
+
+        requestAnimationFrame(animate);
+    }
+
+    function draw() {
+        //兼容性判断
+        if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+        initGui();
+        initRender();
+        initScene();
+        initCamera();
+        initLight();
+        initModel();
+        initControls();
+        initStats();
+
+        animate();
+        window.onresize = onWindowResize;
+    }
+</script>
+</html>

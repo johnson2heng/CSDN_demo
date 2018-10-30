@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        *{
+            margin: 0;
+            padding: 0;
+        }
+        canvas{
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+</body>
+<script src="https://cdn.bootcss.com/three.js/92/three.js"></script>
+<script>
+
+    window.onload = function () {
+        let renderer = new THREE.WebGLRenderer();
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0xcccccc);
+        document.body.appendChild(renderer.domElement);
+
+        let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        let scene = new THREE.Scene();
+        let cubeTextureLoader  = new THREE.CubeTextureLoader();
+
+        let geometry = new THREE.SphereGeometry(100);
+        cubeTextureLoader.setPath( '../images/skyboxsun25deg/' );
+        //六张图片分别是朝前的（posz）、朝后的（negz）、朝上的（posy）、朝下的（negy）、朝右的（posx）和朝左的（negx）。
+        let texture = cubeTextureLoader.load(['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg']);
+        let material = new THREE.MeshBasicMaterial({color:0x00fff, map:texture});
+
+        let sphere = new THREE.Mesh(geometry, material);
+
+        sphere.geometry.scale( 1, 1, - 1 );
+
+        //scene.add(sphere);
+
+        scene.background = texture;
+
+        function render() {
+            renderer.render(scene, camera);
+            requestAnimationFrame(render);
+        }
+
+        render();
+    }
+</script>
+</html>
